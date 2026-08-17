@@ -23,21 +23,61 @@ class ChatRepositoryImpl implements ChatRepository {
     required String senderId,
     required String receiverId,
     required String text,
-  }) async {
-    try {
-      await remoteDataSource.sendMessage(
+  }) {
+    return _run(
+      () => remoteDataSource.sendMessage(
         chatId: chatId,
         senderId: senderId,
         receiverId: receiverId,
         text: text,
-      );
+      ),
+      'Could not send message.',
+    );
+  }
+
+  @override
+  Future<Either<Failure, void>> editMessage({
+    required String chatId,
+    required String messageId,
+    required String text,
+  }) {
+    return _run(
+      () => remoteDataSource.editMessage(
+        chatId: chatId,
+        messageId: messageId,
+        text: text,
+      ),
+      'Could not edit message.',
+    );
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteMessage({
+    required String chatId,
+    required String messageId,
+  }) {
+    return _run(
+      () => remoteDataSource.deleteMessage(
+        chatId: chatId,
+        messageId: messageId,
+      ),
+      'Could not delete message.',
+    );
+  }
+
+  Future<Either<Failure, void>> _run(
+    Future<void> Function() action,
+    String fallback,
+  ) async {
+    try {
+      await action();
       return const Right(null);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (_) {
-      return const Left(ServerFailure('Could not send message.'));
+      return Left(ServerFailure(fallback));
     }
   }
 }

@@ -16,6 +16,7 @@ class AppTextField extends StatefulWidget {
     this.onSubmitted,
     this.prefixIcon,
     this.maxLines = 1,
+    this.autofocus = false,
   });
 
   final TextEditingController controller;
@@ -31,6 +32,7 @@ class AppTextField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted;
   final Widget? prefixIcon;
   final int? maxLines;
+  final bool autofocus;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -58,6 +60,7 @@ class _AppTextFieldState extends State<AppTextField> {
       validator: widget.validator,
       onChanged: widget.onChanged,
       onFieldSubmitted: widget.onSubmitted,
+      autofocus: widget.autofocus,
       minLines: 1,
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       decoration: InputDecoration(

@@ -9,6 +9,8 @@ import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:chat_app/features/chat/data/datasources/chat_remote_data_source.dart';
 import 'package:chat_app/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:chat_app/features/chat/domain/usecases/delete_message.dart';
+import 'package:chat_app/features/chat/domain/usecases/edit_message.dart';
 import 'package:chat_app/features/chat/domain/usecases/send_message.dart';
 import 'package:chat_app/features/chat/domain/usecases/watch_messages.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_bloc.dart';
@@ -78,5 +80,7 @@ ChatBloc createChatBloc() {
   return ChatBloc(
     watchMessages: WatchMessages(repository),
     sendMessage: SendMessage(repository),
+    editMessage: EditMessage(repository),
+    deleteMessage: DeleteMessage(repository),
   );
 }

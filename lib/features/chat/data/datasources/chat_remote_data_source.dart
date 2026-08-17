@@ -12,6 +12,17 @@ abstract class ChatRemoteDataSource {
     required String receiverId,
     required String text,
   });
+
+  Future<void> editMessage({
+    required String chatId,
+    required String messageId,
+    required String text,
+  });
+
+  Future<void> deleteMessage({
+    required String chatId,
+    required String messageId,
+  });
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -34,7 +45,9 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     return _messages(chatId)
         .orderBy('timestamp')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(MessageModel.fromFirestore).toList());
+        .map(
+          (snapshot) => snapshot.docs.map(MessageModel.fromFirestore).toList(),
+        );
   }
 
   @override
@@ -60,6 +73,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         'lastMessage': text,
         'lastMessageTime': FieldValue.serverTimestamp(),
         'lastMessageSenderId': senderId,
+        'lastMessageId': messageRef.id,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       await batch.commit().timeout(
@@ -71,25 +85,110 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
-      throw _fromFirebase(e);
+      throw _fromFirebase(e, 'Could not send message');
     } catch (e) {
       throw ServerException(e.toString());
     }
   }
 
-  Never _fromFirebase(FirebaseException e) {
+  @override
+  Future<void> editMessage({
+    required String chatId,
+    required String messageId,
+    required String text,
+  }) async {
+    try {
+      await _messages(chatId)
+          .doc(messageId)
+          .update({'text': text, 'isEdited': true})
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+      await _syncChatPreview(chatId);
+    } on NetworkException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw _fromFirebase(e, 'Could not edit message');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> deleteMessage({
+    required String chatId,
+    required String messageId,
+  }) async {
+    try {
+      await _messages(chatId)
+          .doc(messageId)
+          .delete()
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+      await _syncChatPreview(chatId);
+    } on NetworkException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw _fromFirebase(e, 'Could not delete message');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  Future<void> _syncChatPreview(String chatId) async {
+    final chatRef = _chats.doc(chatId);
+    final latest = await _messages(chatId)
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get()
+        .timeout(
+          _timeout,
+          onTimeout: () {
+            throw const NetworkException('Request timed out. Please try again.');
+          },
+        );
+    if (latest.docs.isEmpty) {
+      await chatRef.set({
+        'lastMessage': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessageSenderId': '',
+        'lastMessageId': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return;
+    }
+    final message = MessageModel.fromFirestore(latest.docs.first);
+    await chatRef.set({
+      'lastMessage': message.text,
+      'lastMessageTime': Timestamp.fromDate(message.timestamp),
+      'lastMessageSenderId': message.senderId,
+      'lastMessageId': message.id,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Never _fromFirebase(FirebaseException e, String fallback) {
     if (e.code == 'unavailable') {
       throw const NetworkException();
     }
     if (e.code == 'permission-denied') {
-      throw const ServerException(
-        'Could not send message. Check Firestore rules.',
-      );
+      throw ServerException('$fallback. Check Firestore rules.');
     }
     final message = e.message;
     if (message == null || message.isEmpty) {
-      throw ServerException('Could not send message (${e.code}).');
+      throw ServerException('$fallback (${e.code}).');
     }
-    throw ServerException('Could not send message (${e.code}): $message');
+    throw ServerException('$fallback (${e.code}): $message');
   }
 }

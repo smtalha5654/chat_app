@@ -11,4 +11,15 @@ abstract class ChatRepository {
     required String receiverId,
     required String text,
   });
+
+  Future<Either<Failure, void>> editMessage({
+    required String chatId,
+    required String messageId,
+    required String text,
+  });
+
+  Future<Either<Failure, void>> deleteMessage({
+    required String chatId,
+    required String messageId,
+  });
 }

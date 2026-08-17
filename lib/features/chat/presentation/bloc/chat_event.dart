@@ -53,3 +53,22 @@ class ChatWatchFailed extends ChatEvent {
 class ChatRetried extends ChatEvent {
   const ChatRetried();
 }
+
+class ChatMessageEdited extends ChatEvent {
+  const ChatMessageEdited({required this.messageId, required this.text});
+
+  final String messageId;
+  final String text;
+
+  @override
+  List<Object?> get props => [messageId, text];
+}
+
+class ChatMessageDeleted extends ChatEvent {
+  const ChatMessageDeleted(this.messageId);
+
+  final String messageId;
+
+  @override
+  List<Object?> get props => [messageId];
+}

@@ -1,11 +1,14 @@
 import 'package:chat_app/core/widgets/app_button.dart';
 import 'package:chat_app/core/widgets/app_snack_bar.dart';
 import 'package:chat_app/core/widgets/chat_app_bar.dart';
+import 'package:chat_app/core/widgets/confirm_dialog.dart';
 import 'package:chat_app/core/widgets/empty_view.dart';
 import 'package:chat_app/core/widgets/loading_view.dart';
+import 'package:chat_app/features/chat/domain/entities/message_entity.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_event.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_state.dart';
+import 'package:chat_app/features/chat/presentation/widgets/edit_message_dialog.dart';
 import 'package:chat_app/features/chat/presentation/widgets/message_bubble.dart';
 import 'package:chat_app/features/chat/presentation/widgets/message_input.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +39,60 @@ class _ChatPageState extends State<ChatPage> {
     }
     context.read<ChatBloc>().add(ChatMessageSent(text));
     _messageController.clear();
+  }
+
+  Future<void> _onMessageLongPress(MessageEntity message) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit'),
+                onTap: () => Navigator.pop(context, 'edit'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Delete'),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+    if (action == 'edit') {
+      final edited = await showEditMessageDialog(
+        context,
+        initialText: message.text,
+      );
+      if (!mounted || edited == null || edited.isEmpty || edited == message.text) {
+        return;
+      }
+      context.read<ChatBloc>().add(
+        ChatMessageEdited(messageId: message.id, text: edited),
+      );
+      return;
+    }
+    if (action == 'delete') {
+      final confirmed = await ConfirmDialog.show(
+        context,
+        title: 'Delete message',
+        message: 'This message will be removed for everyone.',
+        confirmLabel: 'Delete',
+        isDestructive: true,
+      );
+      if (!confirmed || !mounted) {
+        return;
+      }
+      context.read<ChatBloc>().add(ChatMessageDeleted(message.id));
+    }
   }
 
   @override
@@ -85,7 +142,12 @@ class _ChatPageState extends State<ChatPage> {
           if (state is ChatLoaded) {
             return Column(
               children: [
-                Expanded(child: _MessageList(state: state)),
+                Expanded(
+                  child: _MessageList(
+                    state: state,
+                    onOwnMessageLongPress: _onMessageLongPress,
+                  ),
+                ),
                 MessageInput(
                   controller: _messageController,
                   isSending: state.isSending,
@@ -102,16 +164,18 @@ class _ChatPageState extends State<ChatPage> {
 }
 
 class _MessageList extends StatelessWidget {
-  const _MessageList({required this.state});
+  const _MessageList({
+    required this.state,
+    required this.onOwnMessageLongPress,
+  });
 
   final ChatLoaded state;
+  final ValueChanged<MessageEntity> onOwnMessageLongPress;
 
   @override
   Widget build(BuildContext context) {
     if (state.messages.isEmpty) {
-      return const EmptyView(
-        message: 'No messages yet. Say hello.',
-      );
+      return const EmptyView(message: 'No messages yet. Say hello.');
     }
 
     final items = state.messages.reversed.toList();
@@ -122,9 +186,11 @@ class _MessageList extends StatelessWidget {
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final message = items[index];
+        final isMine = message.senderId == state.currentUserId;
         return MessageBubble(
           message: message,
-          isMine: message.senderId == state.currentUserId,
+          isMine: isMine,
+          onLongPress: isMine ? () => onOwnMessageLongPress(message) : null,
         );
       },
     );

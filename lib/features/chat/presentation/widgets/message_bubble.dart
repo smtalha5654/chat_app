@@ -8,10 +8,12 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.message,
     required this.isMine,
+    this.onLongPress,
   });
 
   final MessageEntity message;
   final bool isMine;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -25,28 +27,31 @@ class MessageBubble extends StatelessWidget {
     final timeColor = isMine
         ? Colors.white.withValues(alpha: 0.8)
         : Theme.of(context).hintColor;
+    final meta = message.isEdited
+        ? 'edited  ${formatMessageTime(message.timestamp)}'
+        : formatMessageTime(message.timestamp);
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(message.text, style: TextStyle(color: fg)),
-            const SizedBox(height: 4),
-            Text(
-              formatMessageTime(message.timestamp),
-              style: TextStyle(color: timeColor, fontSize: 11),
-            ),
-          ],
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(message.text, style: TextStyle(color: fg)),
+              const SizedBox(height: 4),
+              Text(meta, style: TextStyle(color: timeColor, fontSize: 11)),
+            ],
+          ),
         ),
       ),
     );
