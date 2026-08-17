@@ -1,4 +1,5 @@
 import 'package:chat_app/core/router/app_routes.dart';
+import 'package:chat_app/core/widgets/loading_view.dart';
 import 'package:chat_app/features/auth/presentation/pages/login_page.dart';
 import 'package:chat_app/features/auth/presentation/pages/register_page.dart';
 import 'package:chat_app/features/chat/presentation/pages/chat_page.dart';
@@ -12,6 +13,10 @@ class AppRouter {
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.bootstrap:
+        return MaterialPageRoute(
+          builder: (_) => const Scaffold(body: LoadingView()),
+        );
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case AppRoutes.register:

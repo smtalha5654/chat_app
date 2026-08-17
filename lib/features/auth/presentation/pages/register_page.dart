@@ -1,5 +1,13 @@
-import 'package:chat_app/core/router/app_routes.dart';
+import 'package:chat_app/core/utils/validators.dart';
+import 'package:chat_app/core/widgets/app_button.dart';
+import 'package:chat_app/core/widgets/app_snack_bar.dart';
+import 'package:chat_app/core/widgets/app_text_field.dart';
+import 'package:chat_app/core/widgets/chat_app_bar.dart';
+import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:chat_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -9,12 +17,11 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -26,85 +33,89 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _onRegister() {
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      AppRoutes.users,
-      (route) => false,
+    if (_formKey.currentState?.validate() != true) {
+      return;
+    }
+    context.read<AuthBloc>().add(
+      AuthRegisterRequested(
+        displayName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create account')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Display name'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+      appBar: const ChatAppBar(title: 'Create account'),
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is Unauthenticated && state.message != null) {
+            showAppSnackBar(context, state.message!);
+          }
+        },
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    controller: _nameController,
+                    label: 'Display name',
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    validator: Validators.displayName,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: Validators.email,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _passwordController,
+                    label: 'Password',
+                    isPassword: true,
+                    textInputAction: TextInputAction.next,
+                    validator: Validators.password,
+                  ),
+                  const SizedBox(height: 16),
+                  AppTextField(
+                    controller: _confirmPasswordController,
+                    label: 'Confirm password',
+                    isPassword: true,
+                    textInputAction: TextInputAction.done,
+                    validator: (value) => Validators.confirmPassword(
+                      value,
+                      _passwordController.text,
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
+                    onSubmitted: (_) => _onRegister(),
+                  ),
+                  const SizedBox(height: 24),
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      return AppButton(
+                        label: 'Create account',
+                        isLoading: state is AuthLoading,
+                        onPressed: _onRegister,
+                      );
                     },
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirm,
-                decoration: InputDecoration(
-                  labelText: 'Confirm password',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirm
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureConfirm = !_obscureConfirm;
-                      });
-                    },
+                  const SizedBox(height: 8),
+                  AppTextButton(
+                    label: 'Already have an account',
+                    onPressed: () => Navigator.pop(context),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _onRegister,
-                child: const Text('Create account'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Already have an account'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

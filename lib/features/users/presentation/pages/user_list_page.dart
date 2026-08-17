@@ -1,6 +1,12 @@
 import 'package:chat_app/core/router/app_routes.dart';
+import 'package:chat_app/core/widgets/chat_app_bar.dart';
+import 'package:chat_app/core/widgets/confirm_dialog.dart';
+import 'package:chat_app/core/widgets/user_avatar.dart';
+import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:chat_app/features/chat/presentation/pages/chat_page_args.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class UserListPage extends StatelessWidget {
   const UserListPage({super.key});
@@ -10,16 +16,35 @@ class UserListPage extends StatelessWidget {
     (name: 'Sam Lee', preview: 'Talk later.'),
   ];
 
+  Future<void> _onLogout(BuildContext context) async {
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: 'Log out',
+      message: 'Are you sure you want to log out?',
+      confirmLabel: 'Log out',
+      isDestructive: true,
+    );
+    if (!confirmed || !context.mounted) {
+      return;
+    }
+    context.read<AuthBloc>().add(const AuthLogoutRequested());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chats'),
+      appBar: ChatAppBar(
+        title: 'Chats',
         actions: [
           IconButton(
             tooltip: 'Profile',
             icon: const Icon(Icons.person_outline),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
+          ),
+          IconButton(
+            tooltip: 'Log out',
+            icon: const Icon(Icons.logout),
+            onPressed: () => _onLogout(context),
           ),
         ],
       ),
@@ -29,11 +54,7 @@ class UserListPage extends StatelessWidget {
         itemBuilder: (context, index) {
           final user = _placeholderUsers[index];
           return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              child: Text(user.name[0]),
-            ),
+            leading: UserAvatar(name: user.name),
             title: Text(user.name),
             subtitle: Text(
               user.preview,

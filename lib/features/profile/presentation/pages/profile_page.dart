@@ -1,3 +1,7 @@
+import 'package:chat_app/core/widgets/app_button.dart';
+import 'package:chat_app/core/widgets/app_text_field.dart';
+import 'package:chat_app/core/widgets/chat_app_bar.dart';
+import 'package:chat_app/core/widgets/user_avatar.dart';
 import 'package:flutter/material.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -21,32 +25,27 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: const ChatAppBar(title: 'Profile'),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 8),
-            CircleAvatar(
-              radius: 36,
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              child: const Text('Y', style: TextStyle(fontSize: 28)),
-            ),
+            const Center(child: UserAvatar(name: 'You', radius: 36)),
             const SizedBox(height: 24),
-            TextField(
+            AppTextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Display name'),
+              label: 'Display name',
             ),
             const SizedBox(height: 16),
-            TextField(
+            AppTextField(
               controller: _emailController,
+              label: 'Email',
               enabled: false,
-              decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 24),
-            FilledButton(onPressed: () {}, child: const Text('Save')),
+            AppButton(label: 'Save', onPressed: () {}),
           ],
         ),
       ),

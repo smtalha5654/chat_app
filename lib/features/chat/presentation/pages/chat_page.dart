@@ -1,4 +1,6 @@
 import 'package:chat_app/core/theme/app_colors.dart';
+import 'package:chat_app/core/widgets/app_text_field.dart';
+import 'package:chat_app/core/widgets/chat_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class ChatPage extends StatefulWidget {
@@ -24,7 +26,7 @@ class _ChatPageState extends State<ChatPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.peerName)),
+      appBar: ChatAppBar(title: widget.peerName),
       body: Column(
         children: [
           Expanded(
@@ -37,7 +39,11 @@ class _ChatPageState extends State<ChatPage> {
                   isDark: isDark,
                 ),
                 const SizedBox(height: 8),
-                _Bubble(text: 'Yes, just got back.', isMine: true, isDark: isDark),
+                _Bubble(
+                  text: 'Yes, just got back.',
+                  isMine: true,
+                  isDark: isDark,
+                ),
               ],
             ),
           ),
@@ -47,11 +53,9 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AppTextField(
                       controller: _messageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Message',
-                      ),
+                      hint: 'Message',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -84,10 +88,10 @@ class _Bubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = isMine
         ? AppColors.sentBubble
-        : (isDark ? AppColors.receivedBubbleDark : AppColors.receivedBubbleLight);
-    final fg = isMine
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurface;
+        : (isDark
+              ? AppColors.receivedBubbleDark
+              : AppColors.receivedBubbleLight);
+    final fg = isMine ? Colors.white : Theme.of(context).colorScheme.onSurface;
 
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
