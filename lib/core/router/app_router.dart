@@ -1,9 +1,11 @@
 import 'package:chat_app/core/router/app_routes.dart';
+import 'package:chat_app/core/utils/chat_id.dart';
 import 'package:chat_app/core/widgets/loading_view.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_state.dart';
 import 'package:chat_app/features/auth/presentation/pages/login_page.dart';
 import 'package:chat_app/features/auth/presentation/pages/register_page.dart';
+import 'package:chat_app/features/chat/presentation/bloc/chat_event.dart';
 import 'package:chat_app/features/chat/presentation/pages/chat_page.dart';
 import 'package:chat_app/features/chat/presentation/pages/chat_page_args.dart';
 import 'package:chat_app/features/profile/presentation/pages/profile_page.dart';
@@ -43,8 +45,28 @@ class AppRouter {
         );
       case AppRoutes.chat:
         final args = settings.arguments;
-        final peerName = args is ChatPageArgs ? args.peerName : 'Chat';
-        return MaterialPageRoute(builder: (_) => ChatPage(peerName: peerName));
+        final chatArgs = args is ChatPageArgs
+            ? args
+            : const ChatPageArgs(peerName: 'Chat');
+        return MaterialPageRoute(
+          builder: (context) {
+            final authState = context.read<AuthBloc>().state;
+            final currentUserId = authState is Authenticated
+                ? authState.user.id
+                : '';
+            return BlocProvider(
+              create: (_) => createChatBloc()
+                ..add(
+                  ChatStarted(
+                    chatId: chatIdFor(currentUserId, chatArgs.peerId),
+                    currentUserId: currentUserId,
+                    peerId: chatArgs.peerId,
+                  ),
+                ),
+              child: ChatPage(peerName: chatArgs.peerName),
+            );
+          },
+        );
       case AppRoutes.profile:
         return MaterialPageRoute(builder: (_) => const ProfilePage());
       default:

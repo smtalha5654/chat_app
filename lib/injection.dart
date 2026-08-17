@@ -7,6 +7,11 @@ import 'package:chat_app/features/auth/domain/usecases/sign_up.dart';
 import 'package:chat_app/features/auth/domain/usecases/watch_auth.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:chat_app/features/chat/data/datasources/chat_remote_data_source.dart';
+import 'package:chat_app/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:chat_app/features/chat/domain/usecases/send_message.dart';
+import 'package:chat_app/features/chat/domain/usecases/watch_messages.dart';
+import 'package:chat_app/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:chat_app/features/users/data/datasources/user_local_data_source.dart';
 import 'package:chat_app/features/users/data/datasources/user_remote_data_source.dart';
 import 'package:chat_app/features/users/data/repositories/user_repository_impl.dart';
@@ -61,5 +66,17 @@ UsersBloc createUsersBloc() {
     refreshUsers: RefreshUsers(userRepository),
     getCachedUsers: GetCachedUsers(userRepository),
     networkInfo: networkInfo,
+  );
+}
+
+ChatBloc createChatBloc() {
+  final repository = ChatRepositoryImpl(
+    remoteDataSource: ChatRemoteDataSourceImpl(
+      firestore: FirebaseFirestore.instance,
+    ),
+  );
+  return ChatBloc(
+    watchMessages: WatchMessages(repository),
+    sendMessage: SendMessage(repository),
   );
 }

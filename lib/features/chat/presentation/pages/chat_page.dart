@@ -1,7 +1,15 @@
-import 'package:chat_app/core/theme/app_colors.dart';
-import 'package:chat_app/core/widgets/app_text_field.dart';
+import 'package:chat_app/core/widgets/app_button.dart';
+import 'package:chat_app/core/widgets/app_snack_bar.dart';
 import 'package:chat_app/core/widgets/chat_app_bar.dart';
+import 'package:chat_app/core/widgets/empty_view.dart';
+import 'package:chat_app/core/widgets/loading_view.dart';
+import 'package:chat_app/features/chat/presentation/bloc/chat_bloc.dart';
+import 'package:chat_app/features/chat/presentation/bloc/chat_event.dart';
+import 'package:chat_app/features/chat/presentation/bloc/chat_state.dart';
+import 'package:chat_app/features/chat/presentation/widgets/message_bubble.dart';
+import 'package:chat_app/features/chat/presentation/widgets/message_input.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key, required this.peerName});
@@ -21,91 +29,104 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
+  void _onSend() {
+    final text = _messageController.text;
+    if (text.trim().isEmpty) {
+      return;
+    }
+    context.read<ChatBloc>().add(ChatMessageSent(text));
+    _messageController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: ChatAppBar(title: widget.peerName),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              children: [
-                _Bubble(
-                  text: 'Hey, are you around?',
-                  isMine: false,
-                  isDark: isDark,
+      body: BlocConsumer<ChatBloc, ChatState>(
+        listenWhen: (previous, current) {
+          return current is ChatLoaded &&
+              current.sendError != null &&
+              (previous is! ChatLoaded ||
+                  previous.sendError != current.sendError);
+        },
+        listener: (context, state) {
+          if (state is ChatLoaded && state.sendError != null) {
+            showAppSnackBar(context, state.sendError!);
+          }
+        },
+        builder: (context, state) {
+          if (state is ChatLoading || state is ChatInitial) {
+            return const LoadingView();
+          }
+          if (state is ChatFailure) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Could not load messages',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    AppButton(
+                      label: 'Retry',
+                      onPressed: () {
+                        context.read<ChatBloc>().add(const ChatRetried());
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                _Bubble(
-                  text: 'Yes, just got back.',
-                  isMine: true,
-                  isDark: isDark,
+              ),
+            );
+          }
+          if (state is ChatLoaded) {
+            return Column(
+              children: [
+                Expanded(child: _MessageList(state: state)),
+                MessageInput(
+                  controller: _messageController,
+                  isSending: state.isSending,
+                  onSend: _onSend,
                 ),
               ],
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      controller: _messageController,
-                      hint: 'Message',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: () {},
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+            );
+          }
+          return const LoadingView();
+        },
       ),
     );
   }
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({
-    required this.text,
-    required this.isMine,
-    required this.isDark,
-  });
+class _MessageList extends StatelessWidget {
+  const _MessageList({required this.state});
 
-  final String text;
-  final bool isMine;
-  final bool isDark;
+  final ChatLoaded state;
 
   @override
   Widget build(BuildContext context) {
-    final bg = isMine
-        ? AppColors.sentBubble
-        : (isDark
-              ? AppColors.receivedBubbleDark
-              : AppColors.receivedBubbleLight);
-    final fg = isMine ? Colors.white : Theme.of(context).colorScheme.onSurface;
+    if (state.messages.isEmpty) {
+      return const EmptyView(
+        message: 'No messages yet. Say hello.',
+      );
+    }
 
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(text, style: TextStyle(color: fg)),
-      ),
+    final items = state.messages.reversed.toList();
+    return ListView.separated(
+      reverse: true,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final message = items[index];
+        return MessageBubble(
+          message: message,
+          isMine: message.senderId == state.currentUserId,
+        );
+      },
     );
   }
 }
