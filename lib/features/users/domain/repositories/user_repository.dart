@@ -4,4 +4,10 @@ import 'package:dartz/dartz.dart';
 
 abstract class UserRepository {
   Future<Either<Failure, void>> ensureUser(UserEntity user);
+
+  Stream<List<UserEntity>> watchUsers();
+
+  Future<Either<Failure, List<UserEntity>>> refreshUsers();
+
+  Future<Either<Failure, List<UserEntity>>> getCachedUsers();
 }

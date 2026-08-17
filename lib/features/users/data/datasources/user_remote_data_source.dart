@@ -1,5 +1,6 @@
 import 'package:chat_app/core/constants/firestore_collections.dart';
 import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/features/users/data/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract class UserRemoteDataSource {
@@ -8,6 +9,10 @@ abstract class UserRemoteDataSource {
     required String email,
     required String displayName,
   });
+
+  Stream<List<UserModel>> watchUsers();
+
+  Future<List<UserModel>> fetchUsers();
 }
 
 class UserRemoteDataSourceImpl implements UserRemoteDataSource {
@@ -48,25 +53,61 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
-      if (e.code == 'unavailable') {
-        throw const NetworkException();
-      }
-      throw ServerException(_mapError(e.code, e.message));
+      throw _fromFirebase(e, 'Could not save your profile');
     } catch (e) {
       throw ServerException(e.toString());
     }
   }
 
-  String _mapError(String code, String? message) {
-    switch (code) {
-      case 'permission-denied':
-        return 'Could not save your profile. Check Firestore rules.';
-      case 'not-found':
-        return 'Firestore database not found. Use the (default) database.';
-      default:
-        return message == null || message.isEmpty
-            ? 'Could not save your profile ($code).'
-            : 'Could not save your profile ($code): $message';
+  @override
+  Stream<List<UserModel>> watchUsers() {
+    return _users.snapshots().map((snapshot) {
+      return snapshot.docs.map(UserModel.fromFirestore).toList();
+    });
+  }
+
+  @override
+  Future<List<UserModel>> fetchUsers() async {
+    try {
+      final snapshot = await _users
+          .get(const GetOptions(source: Source.server))
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+      return snapshot.docs.map(UserModel.fromFirestore).toList();
+    } on NetworkException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw _fromFirebase(e, 'Could not load users');
+    } catch (e) {
+      if (e is ServerException) {
+        rethrow;
+      }
+      throw ServerException(e.toString());
     }
+  }
+
+  Never _fromFirebase(FirebaseException e, String fallback) {
+    if (e.code == 'unavailable') {
+      throw const NetworkException();
+    }
+    if (e.code == 'permission-denied') {
+      throw ServerException('$fallback. Check Firestore rules.');
+    }
+    if (e.code == 'not-found') {
+      throw const ServerException(
+        'Firestore database not found. Use the (default) database.',
+      );
+    }
+    final message = e.message;
+    if (message == null || message.isEmpty) {
+      throw ServerException('$fallback (${e.code}).');
+    }
+    throw ServerException('$fallback (${e.code}): $message');
   }
 }

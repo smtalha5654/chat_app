@@ -68,4 +68,19 @@ class _FakeUserRepository implements UserRepository {
   Future<Either<Failure, void>> ensureUser(UserEntity user) async {
     return const Right(null);
   }
+
+  @override
+  Stream<List<UserEntity>> watchUsers() {
+    return const Stream.empty();
+  }
+
+  @override
+  Future<Either<Failure, List<UserEntity>>> refreshUsers() async {
+    return const Right([]);
+  }
+
+  @override
+  Future<Either<Failure, List<UserEntity>>> getCachedUsers() async {
+    return const Right([]);
+  }
 }

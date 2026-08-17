@@ -12,7 +12,9 @@ class AppTextField extends StatefulWidget {
     this.textCapitalization = TextCapitalization.none,
     this.isPassword = false,
     this.enabled = true,
+    this.onChanged,
     this.onSubmitted,
+    this.prefixIcon,
   });
 
   final TextEditingController controller;
@@ -24,7 +26,9 @@ class AppTextField extends StatefulWidget {
   final TextCapitalization textCapitalization;
   final bool isPassword;
   final bool enabled;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final Widget? prefixIcon;
 
   @override
   State<AppTextField> createState() => _AppTextFieldState();
@@ -50,10 +54,12 @@ class _AppTextFieldState extends State<AppTextField> {
       textCapitalization: widget.textCapitalization,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       validator: widget.validator,
+      onChanged: widget.onChanged,
       onFieldSubmitted: widget.onSubmitted,
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
+        prefixIcon: widget.prefixIcon,
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
