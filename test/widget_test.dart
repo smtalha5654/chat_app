@@ -7,6 +7,8 @@ import 'package:chat_app/features/auth/domain/usecases/sign_up.dart';
 import 'package:chat_app/features/auth/domain/usecases/watch_auth.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
+import 'package:chat_app/features/users/domain/repositories/user_repository.dart';
+import 'package:chat_app/features/users/domain/usecases/ensure_user_profile.dart';
 import 'package:chat_app/main.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
@@ -14,12 +16,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('shows login screen on launch', (WidgetTester tester) async {
-    final repository = _FakeAuthRepository();
+    final authRepository = _FakeAuthRepository();
     final authBloc = AuthBloc(
-      signIn: SignIn(repository),
-      signUp: SignUp(repository),
-      signOut: SignOut(repository),
-      watchAuth: WatchAuth(repository),
+      signIn: SignIn(authRepository),
+      signUp: SignUp(authRepository),
+      signOut: SignOut(authRepository),
+      watchAuth: WatchAuth(authRepository),
+      ensureUserProfile: EnsureUserProfile(_FakeUserRepository()),
     )..add(const AuthStarted());
 
     await tester.pumpWidget(ChatApp(authBloc: authBloc));
@@ -56,6 +59,13 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> signOut() async {
+    return const Right(null);
+  }
+}
+
+class _FakeUserRepository implements UserRepository {
+  @override
+  Future<Either<Failure, void>> ensureUser(UserEntity user) async {
     return const Right(null);
   }
 }

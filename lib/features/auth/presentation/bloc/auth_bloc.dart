@@ -8,6 +8,8 @@ import 'package:chat_app/features/auth/domain/usecases/sign_up.dart';
 import 'package:chat_app/features/auth/domain/usecases/watch_auth.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_state.dart';
+import 'package:chat_app/features/users/domain/usecases/ensure_user_profile.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -16,10 +18,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignUp signUp,
     required SignOut signOut,
     required WatchAuth watchAuth,
+    required EnsureUserProfile ensureUserProfile,
   }) : _signIn = signIn,
        _signUp = signUp,
        _signOut = signOut,
        _watchAuth = watchAuth,
+       _ensureUserProfile = ensureUserProfile,
        super(const AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthUserChanged>(_onUserChanged);
@@ -32,6 +36,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignUp _signUp;
   final SignOut _signOut;
   final WatchAuth _watchAuth;
+  final EnsureUserProfile _ensureUserProfile;
 
   StreamSubscription<UserEntity?>? _authSubscription;
 
@@ -42,9 +47,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
   }
 
-  void _onUserChanged(AuthUserChanged event, Emitter<AuthState> emit) {
+  Future<void> _onUserChanged(
+    AuthUserChanged event,
+    Emitter<AuthState> emit,
+  ) async {
     final user = event.user;
     if (user != null) {
+      final result = await _ensureUserProfile(user);
+      result.fold((failure) {
+        if (kDebugMode) {
+          debugPrint('Failed to save user profile: ${failure.message}');
+        }
+      }, (_) {});
       emit(Authenticated(user));
       return;
     }
