@@ -62,6 +62,10 @@ AuthRepository createAuthRepository() {
   );
 }
 
+NetworkInfo createNetworkInfo() {
+  return NetworkInfoImpl(connectivity: Connectivity());
+}
+
 AuthBloc createAuthBloc() {
   final authRepository = createAuthRepository();
   final userRepository = createUserRepository();
@@ -71,6 +75,7 @@ AuthBloc createAuthBloc() {
     signOut: SignOut(authRepository),
     watchAuth: WatchAuth(authRepository),
     ensureUserProfile: EnsureUserProfile(userRepository),
+    networkInfo: createNetworkInfo(),
   )..add(const AuthStarted());
 }
 
@@ -88,7 +93,6 @@ ChatRepository createChatRepository() {
 UsersBloc createUsersBloc() {
   final userRepository = createUserRepository();
   final chatRepository = createChatRepository();
-  final networkInfo = NetworkInfoImpl(connectivity: Connectivity());
   return UsersBloc(
     watchUsers: WatchUsers(userRepository),
     refreshUsers: RefreshUsers(userRepository),
@@ -96,7 +100,7 @@ UsersBloc createUsersBloc() {
     watchChatPreviews: WatchChatPreviews(chatRepository),
     refreshChatPreviews: RefreshChatPreviews(chatRepository),
     getCachedChatPreviews: GetCachedChatPreviews(chatRepository),
-    networkInfo: networkInfo,
+    networkInfo: createNetworkInfo(),
   );
 }
 
@@ -107,6 +111,7 @@ ChatBloc createChatBloc() {
     sendMessage: SendMessage(repository),
     editMessage: EditMessage(repository),
     deleteMessage: DeleteMessage(repository),
+    networkInfo: createNetworkInfo(),
   );
 }
 
@@ -114,5 +119,6 @@ ProfileBloc createProfileBloc() {
   return ProfileBloc(
     updateAuthDisplayName: UpdateAuthDisplayName(createAuthRepository()),
     updateUserDisplayName: UpdateUserDisplayName(createUserRepository()),
+    networkInfo: createNetworkInfo(),
   );
 }

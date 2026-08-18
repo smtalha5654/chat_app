@@ -21,6 +21,15 @@ class UsersDisconnected extends UsersState {
   const UsersDisconnected();
 }
 
+class UsersFailure extends UsersState {
+  const UsersFailure(this.message);
+
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
+
 class UsersLoaded extends UsersState {
   const UsersLoaded({
     required this.users,
@@ -29,6 +38,7 @@ class UsersLoaded extends UsersState {
     this.searchQuery = '',
     this.isOffline = false,
     this.isRefreshing = false,
+    this.refreshError,
   });
 
   final List<UserEntity> users;
@@ -37,6 +47,7 @@ class UsersLoaded extends UsersState {
   final String searchQuery;
   final bool isOffline;
   final bool isRefreshing;
+  final String? refreshError;
 
   ChatPreviewEntity? previewFor(String userId) => previews[userId];
 
@@ -58,6 +69,8 @@ class UsersLoaded extends UsersState {
     String? searchQuery,
     bool? isOffline,
     bool? isRefreshing,
+    String? refreshError,
+    bool clearRefreshError = false,
   }) {
     return UsersLoaded(
       users: users ?? this.users,
@@ -66,6 +79,9 @@ class UsersLoaded extends UsersState {
       searchQuery: searchQuery ?? this.searchQuery,
       isOffline: isOffline ?? this.isOffline,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      refreshError: clearRefreshError
+          ? null
+          : (refreshError ?? this.refreshError),
     );
   }
 
@@ -77,5 +93,6 @@ class UsersLoaded extends UsersState {
     searchQuery,
     isOffline,
     isRefreshing,
+    refreshError,
   ];
 }

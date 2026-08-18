@@ -1,4 +1,5 @@
 import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/network/with_timeout.dart';
 import 'package:chat_app/features/auth/data/models/user_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -23,8 +24,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   final FirebaseAuth firebaseAuth;
 
-  static const _timeout = Duration(seconds: 15);
-
   @override
   Stream<UserModel?> watchUser() {
     return firebaseAuth.authStateChanges().map((user) {
@@ -41,21 +40,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String password,
   }) async {
     try {
-      final credential = await firebaseAuth
-          .signInWithEmailAndPassword(email: email, password: password)
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      final credential = await withTimeout(
+        firebaseAuth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        ),
+      );
       final user = credential.user;
       if (user == null) {
         throw const AuthException();
       }
       return UserModel.fromFirebaseUser(user);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on AuthException {
@@ -74,29 +71,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String password,
   }) async {
     try {
-      final credential = await firebaseAuth
-          .createUserWithEmailAndPassword(email: email, password: password)
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      final credential = await withTimeout(
+        firebaseAuth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        ),
+      );
       final user = credential.user;
       if (user == null) {
         throw const AuthException();
       }
-      await user.updateDisplayName(displayName).timeout(
-        _timeout,
-        onTimeout: () {
-          throw const NetworkException('Request timed out. Please try again.');
-        },
-      );
-      await user.reload();
+      await withTimeout(user.updateDisplayName(displayName));
+      await withTimeout(user.reload());
       final refreshed = firebaseAuth.currentUser ?? user;
       return UserModel.fromFirebaseUser(refreshed);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on AuthException {
@@ -115,24 +105,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       if (user == null) {
         throw const AuthException('You are not signed in.');
       }
-      await user
-          .updateDisplayName(displayName)
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
-      await user.reload().timeout(
-        _timeout,
-        onTimeout: () {
-          throw const NetworkException('Request timed out. Please try again.');
-        },
-      );
+      await withTimeout(user.updateDisplayName(displayName));
+      await withTimeout(user.reload());
       final refreshed = firebaseAuth.currentUser ?? user;
       return UserModel.fromFirebaseUser(refreshed);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on AuthException {
@@ -147,12 +125,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<void> signOut() async {
     try {
-      await firebaseAuth.signOut().timeout(
-        _timeout,
-        onTimeout: () {
-          throw const NetworkException('Request timed out. Please try again.');
-        },
-      );
+      await withTimeout(firebaseAuth.signOut());
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseAuthException catch (e) {

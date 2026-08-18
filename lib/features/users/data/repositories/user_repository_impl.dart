@@ -1,4 +1,4 @@
-import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/error/exception_mapper.dart';
 import 'package:chat_app/core/error/failures.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
 import 'package:chat_app/features/users/data/datasources/user_local_data_source.dart';
@@ -25,12 +25,11 @@ class UserRepositoryImpl implements UserRepository {
         displayName: user.displayName,
       );
       return const Right(null);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (_) {
-      return const Left(ServerFailure('Could not save your profile.'));
+    } catch (error) {
+      return Left(
+        failureFromException(error) ??
+            const ServerFailure('Could not save your profile.'),
+      );
     }
   }
 
@@ -45,12 +44,11 @@ class UserRepositoryImpl implements UserRepository {
         displayName: displayName,
       );
       return const Right(null);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (_) {
-      return const Left(ServerFailure('Could not update your profile.'));
+    } catch (error) {
+      return Left(
+        failureFromException(error) ??
+            const ServerFailure('Could not update your profile.'),
+      );
     }
   }
 
@@ -68,12 +66,11 @@ class UserRepositoryImpl implements UserRepository {
       final models = await remoteDataSource.fetchUsers();
       await _cacheQuietly(models);
       return Right(models.map((model) => model.toEntity()).toList());
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (_) {
-      return const Left(ServerFailure('Could not load users.'));
+    } catch (error) {
+      return Left(
+        failureFromException(error) ??
+            const ServerFailure('Could not load users.'),
+      );
     }
   }
 
@@ -82,10 +79,8 @@ class UserRepositoryImpl implements UserRepository {
     try {
       final models = localDataSource.getCachedUsers();
       return Right(models.map((model) => model.toEntity()).toList());
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message));
-    } catch (_) {
-      return const Left(CacheFailure());
+    } catch (error) {
+      return Left(failureFromException(error) ?? const CacheFailure());
     }
   }
 

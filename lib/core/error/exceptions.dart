@@ -16,6 +16,14 @@ class NetworkException implements Exception {
   const NetworkException([this.message = 'No internet connection']);
 }
 
+class RequestTimeoutException implements Exception {
+  final String message;
+
+  const RequestTimeoutException([
+    this.message = 'Request timed out. Please try again.',
+  ]);
+}
+
 class AuthException implements Exception {
   final String message;
 

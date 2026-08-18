@@ -50,6 +50,19 @@ class ChatWatchFailed extends ChatEvent {
   List<Object?> get props => [message];
 }
 
+class ChatFirstSnapshotTimedOut extends ChatEvent {
+  const ChatFirstSnapshotTimedOut();
+}
+
+class ChatConnectionChanged extends ChatEvent {
+  const ChatConnectionChanged(this.isConnected);
+
+  final bool isConnected;
+
+  @override
+  List<Object?> get props => [isConnected];
+}
+
 class ChatRetried extends ChatEvent {
   const ChatRetried();
 }

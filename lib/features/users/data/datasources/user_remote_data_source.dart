@@ -1,5 +1,6 @@
 import 'package:chat_app/core/constants/firestore_collections.dart';
 import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/network/with_timeout.dart';
 import 'package:chat_app/features/users/data/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -25,8 +26,6 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
 
   final FirebaseFirestore firestore;
 
-  static const _timeout = Duration(seconds: 15);
-
   CollectionReference<Map<String, dynamic>> get _users {
     return firestore.collection(FirestoreCollections.users);
   }
@@ -38,23 +37,17 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required String displayName,
   }) async {
     try {
-      await _users
-          .doc(uid)
-          .set({
-            'uid': uid,
-            'email': email,
-            'displayName': displayName,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      await withTimeout(
+        _users.doc(uid).set({
+          'uid': uid,
+          'email': email,
+          'displayName': displayName,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)),
+      );
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -70,20 +63,14 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required String displayName,
   }) async {
     try {
-      await _users
-          .doc(uid)
-          .set({
-            'displayName': displayName,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      await withTimeout(
+        _users.doc(uid).set({
+          'displayName': displayName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)),
+      );
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -103,17 +90,12 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
   @override
   Future<List<UserModel>> fetchUsers() async {
     try {
-      final snapshot = await _users
-          .get(const GetOptions(source: Source.server))
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      final snapshot = await withTimeout(
+        _users.get(const GetOptions(source: Source.server)),
+      );
       return snapshot.docs.map(UserModel.fromFirestore).toList();
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {

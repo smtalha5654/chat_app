@@ -1,4 +1,5 @@
 import 'package:chat_app/core/error/failures.dart';
+import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
 import 'package:chat_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_in.dart';
@@ -23,6 +24,7 @@ void main() {
       signOut: SignOut(authRepository),
       watchAuth: WatchAuth(authRepository),
       ensureUserProfile: EnsureUserProfile(_FakeUserRepository()),
+      networkInfo: _FakeNetworkInfo(),
     )..add(const AuthStarted());
 
     await tester.pumpWidget(ChatApp(authBloc: authBloc));
@@ -32,6 +34,14 @@ void main() {
     expect(find.text('Log in'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(2));
   });
+}
+
+class _FakeNetworkInfo implements NetworkInfo {
+  @override
+  Future<bool> get isConnected async => true;
+
+  @override
+  Stream<bool> get onConnectivityChanged => const Stream.empty();
 }
 
 class _FakeAuthRepository implements AuthRepository {

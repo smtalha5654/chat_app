@@ -1,4 +1,4 @@
-import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/error/exception_mapper.dart';
 import 'package:chat_app/core/error/failures.dart';
 import 'package:chat_app/features/chat/data/datasources/chat_local_data_source.dart';
 import 'package:chat_app/features/chat/data/datasources/chat_remote_data_source.dart';
@@ -40,12 +40,11 @@ class ChatRepositoryImpl implements ChatRepository {
       final models = await remoteDataSource.fetchChatPreviews(userId);
       await _cacheQuietly(userId, models);
       return Right(models.map((model) => model.toEntity()).toList());
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (_) {
-      return const Left(ServerFailure('Could not load chats.'));
+    } catch (error) {
+      return Left(
+        failureFromException(error) ??
+            const ServerFailure('Could not load chats.'),
+      );
     }
   }
 
@@ -56,10 +55,8 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       final models = localDataSource.getCachedPreviews(userId);
       return Right(models.map((model) => model.toEntity()).toList());
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message));
-    } catch (_) {
-      return const Left(CacheFailure());
+    } catch (error) {
+      return Left(failureFromException(error) ?? const CacheFailure());
     }
   }
 
@@ -118,12 +115,8 @@ class ChatRepositoryImpl implements ChatRepository {
     try {
       await action();
       return const Right(null);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (_) {
-      return Left(ServerFailure(fallback));
+    } catch (error) {
+      return Left(failureFromException(error) ?? ServerFailure(fallback));
     }
   }
 

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({super.key, required this.onRetry});
+  const OfflineBanner({
+    super.key,
+    required this.onRetry,
+    this.message = 'You are offline. Showing saved data.',
+  });
 
   final VoidCallback onRetry;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +25,7 @@ class OfflineBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'You are offline. Showing saved users.',
+                message,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onErrorContainer,
                 ),

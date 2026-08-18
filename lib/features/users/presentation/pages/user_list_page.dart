@@ -1,17 +1,19 @@
 import 'package:chat_app/core/router/app_routes.dart';
 import 'package:chat_app/core/widgets/app_text_field.dart';
+import 'package:chat_app/core/widgets/app_snack_bar.dart';
 import 'package:chat_app/core/widgets/chat_app_bar.dart';
 import 'package:chat_app/core/widgets/confirm_dialog.dart';
 import 'package:chat_app/core/widgets/empty_view.dart';
+import 'package:chat_app/core/widgets/error_view.dart';
 import 'package:chat_app/core/widgets/loading_view.dart';
 import 'package:chat_app/core/widgets/no_internet_view.dart';
+import 'package:chat_app/core/widgets/offline_banner.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_event.dart';
 import 'package:chat_app/features/chat/presentation/pages/chat_page_args.dart';
 import 'package:chat_app/features/users/presentation/bloc/users_bloc.dart';
 import 'package:chat_app/features/users/presentation/bloc/users_event.dart';
 import 'package:chat_app/features/users/presentation/bloc/users_state.dart';
-import 'package:chat_app/features/users/presentation/widgets/offline_banner.dart';
 import 'package:chat_app/features/users/presentation/widgets/user_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -64,7 +66,18 @@ class _UserListPageState extends State<UserListPage> {
           ),
         ],
       ),
-      body: BlocBuilder<UsersBloc, UsersState>(
+      body: BlocConsumer<UsersBloc, UsersState>(
+        listenWhen: (previous, current) {
+          return current is UsersLoaded &&
+              current.refreshError != null &&
+              (previous is! UsersLoaded ||
+                  previous.refreshError != current.refreshError);
+        },
+        listener: (context, state) {
+          if (state is UsersLoaded && state.refreshError != null) {
+            showAppSnackBar(context, state.refreshError!);
+          }
+        },
         builder: (context, state) {
           if (state is UsersLoading || state is UsersInitial) {
             return const LoadingView();
@@ -76,11 +89,20 @@ class _UserListPageState extends State<UserListPage> {
               },
             );
           }
+          if (state is UsersFailure) {
+            return ErrorView(
+              message: state.message,
+              onRetry: () {
+                context.read<UsersBloc>().add(const UsersRefreshed());
+              },
+            );
+          }
           if (state is UsersLoaded) {
             return Column(
               children: [
                 if (state.isOffline)
                   OfflineBanner(
+                    message: 'You are offline. Showing saved users.',
                     onRetry: () {
                       context.read<UsersBloc>().add(const UsersRefreshed());
                     },
@@ -133,7 +155,7 @@ class _UsersBody extends StatelessWidget {
           if (next is UsersLoaded) {
             return !next.isRefreshing;
           }
-          return next is UsersDisconnected;
+          return next is UsersDisconnected || next is UsersFailure;
         });
       },
       child: ListView.separated(

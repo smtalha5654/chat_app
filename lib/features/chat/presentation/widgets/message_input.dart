@@ -7,11 +7,13 @@ class MessageInput extends StatelessWidget {
     required this.controller,
     required this.onSend,
     this.isSending = false,
+    this.enabled = true,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
   final bool isSending;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,8 @@ class MessageInput extends StatelessWidget {
             Expanded(
               child: AppTextField(
                 controller: controller,
-                hint: 'Message',
+                hint: enabled ? 'Message' : 'Waiting for connection',
+                enabled: enabled && !isSending,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 maxLines: 4,
@@ -32,7 +35,7 @@ class MessageInput extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton.filled(
-              onPressed: isSending ? null : onSend,
+              onPressed: !enabled || isSending ? null : onSend,
               icon: isSending
                   ? const SizedBox(
                       width: 18,

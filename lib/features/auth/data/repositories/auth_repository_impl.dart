@@ -1,4 +1,4 @@
-import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/error/exception_mapper.dart';
 import 'package:chat_app/core/error/failures.dart';
 import 'package:chat_app/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:chat_app/features/auth/data/models/user_model.dart';
@@ -51,12 +51,11 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await remoteDataSource.signOut();
       return const Right(null);
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on AuthException catch (e) {
-      return Left(AuthFailure(e.message));
-    } catch (_) {
-      return const Left(AuthFailure('Could not log out. Please try again.'));
+    } catch (error) {
+      return Left(
+        failureFromException(error) ??
+            const AuthFailure('Could not log out. Please try again.'),
+      );
     }
   }
 
@@ -66,12 +65,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final model = await request();
       return Right(model.toEntity());
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on AuthException catch (e) {
-      return Left(AuthFailure(e.message));
-    } catch (_) {
-      return const Left(AuthFailure());
+    } catch (error) {
+      return Left(failureFromException(error) ?? const AuthFailure());
     }
   }
 }

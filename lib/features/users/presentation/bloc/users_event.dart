@@ -58,6 +58,10 @@ class UsersWatchFailed extends UsersEvent {
   List<Object?> get props => [message];
 }
 
+class UsersFirstSnapshotTimedOut extends UsersEvent {
+  const UsersFirstSnapshotTimedOut();
+}
+
 class UsersConnectionChanged extends UsersEvent {
   const UsersConnectionChanged(this.isConnected);
 

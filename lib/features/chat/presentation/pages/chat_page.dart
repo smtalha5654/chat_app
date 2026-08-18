@@ -1,9 +1,10 @@
-import 'package:chat_app/core/widgets/app_button.dart';
 import 'package:chat_app/core/widgets/app_snack_bar.dart';
 import 'package:chat_app/core/widgets/chat_app_bar.dart';
 import 'package:chat_app/core/widgets/confirm_dialog.dart';
 import 'package:chat_app/core/widgets/empty_view.dart';
+import 'package:chat_app/core/widgets/error_view.dart';
 import 'package:chat_app/core/widgets/loading_view.dart';
+import 'package:chat_app/core/widgets/offline_banner.dart';
 import 'package:chat_app/features/chat/domain/entities/message_entity.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:chat_app/features/chat/presentation/bloc/chat_event.dart';
@@ -116,32 +117,23 @@ class _ChatPageState extends State<ChatPage> {
             return const LoadingView();
           }
           if (state is ChatFailure) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Could not load messages',
-                      style: Theme.of(context).textTheme.titleMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    AppButton(
-                      label: 'Retry',
-                      onPressed: () {
-                        context.read<ChatBloc>().add(const ChatRetried());
-                      },
-                    ),
-                  ],
-                ),
-              ),
+            return ErrorView(
+              message: state.message,
+              onRetry: () {
+                context.read<ChatBloc>().add(const ChatRetried());
+              },
             );
           }
           if (state is ChatLoaded) {
             return Column(
               children: [
+                if (state.isOffline)
+                  OfflineBanner(
+                    message: 'You are offline. New messages cannot be sent.',
+                    onRetry: () {
+                      context.read<ChatBloc>().add(const ChatRetried());
+                    },
+                  ),
                 Expanded(
                   child: _MessageList(
                     state: state,
@@ -151,6 +143,7 @@ class _ChatPageState extends State<ChatPage> {
                 MessageInput(
                   controller: _messageController,
                   isSending: state.isSending,
+                  enabled: !state.isOffline,
                   onSend: _onSend,
                 ),
               ],

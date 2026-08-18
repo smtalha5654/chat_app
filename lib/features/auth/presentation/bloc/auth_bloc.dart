@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/core/usecase/usecase.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_in.dart';
@@ -19,11 +20,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignOut signOut,
     required WatchAuth watchAuth,
     required EnsureUserProfile ensureUserProfile,
+    required NetworkInfo networkInfo,
   }) : _signIn = signIn,
        _signUp = signUp,
        _signOut = signOut,
        _watchAuth = watchAuth,
        _ensureUserProfile = ensureUserProfile,
+       _networkInfo = networkInfo,
        super(const AuthInitial()) {
     on<AuthStarted>(_onStarted);
     on<AuthUserChanged>(_onUserChanged);
@@ -38,6 +41,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOut _signOut;
   final WatchAuth _watchAuth;
   final EnsureUserProfile _ensureUserProfile;
+  final NetworkInfo _networkInfo;
 
   StreamSubscription<UserEntity?>? _authSubscription;
 
@@ -76,6 +80,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(const AuthLoading());
+    if (!await _networkInfo.isConnected) {
+      emit(const Unauthenticated(message: 'No internet connection.'));
+      return;
+    }
     final result = await _signIn(
       SignInParams(email: event.email, password: event.password),
     );
@@ -90,6 +98,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(const AuthLoading());
+    if (!await _networkInfo.isConnected) {
+      emit(const Unauthenticated(message: 'No internet connection.'));
+      return;
+    }
     final result = await _signUp(
       SignUpParams(
         displayName: event.displayName,

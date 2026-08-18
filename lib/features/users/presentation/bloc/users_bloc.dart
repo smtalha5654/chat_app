@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:chat_app/core/constants/app_timeouts.dart';
 import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/core/usecase/usecase.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
@@ -37,6 +38,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     on<UsersUpdated>(_onUpdated);
     on<UsersPreviewsUpdated>(_onPreviewsUpdated);
     on<UsersWatchFailed>(_onWatchFailed);
+    on<UsersFirstSnapshotTimedOut>(_onFirstSnapshotTimedOut);
     on<UsersConnectionChanged>(_onConnectionChanged);
   }
 
@@ -53,6 +55,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   StreamSubscription<List<UserEntity>>? _usersSubscription;
   StreamSubscription<List<ChatPreviewEntity>>? _previewsSubscription;
   StreamSubscription<bool>? _connectivitySubscription;
+  Timer? _firstSnapshotTimer;
 
   Future<void> _onStarted(UsersStarted event, Emitter<UsersState> emit) async {
     _currentUserId = event.currentUserId;
@@ -60,7 +63,10 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
     final online = await _networkInfo.isConnected;
     final cached = await _getCachedUsers(const NoParams());
-    final cachedUsers = cached.fold<List<UserEntity>>((_) => [], (users) => users);
+    final cachedUsers = cached.fold<List<UserEntity>>(
+      (_) => [],
+      (users) => users,
+    );
     final cachedPreviews = await _getCachedChatPreviews(_currentUserId);
     _previews = cachedPreviews.fold<Map<String, ChatPreviewEntity>>(
       (_) => {},
@@ -80,6 +86,12 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       emit(const UsersDisconnected());
     }
 
+    await _listenToUsers();
+    await _listenToConnectivity();
+    _armFirstSnapshotTimer();
+  }
+
+  Future<void> _listenToUsers() async {
     await _usersSubscription?.cancel();
     _usersSubscription = _watchUsers().listen(
       (users) => add(UsersUpdated(users)),
@@ -91,7 +103,9 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
       (previews) => add(UsersPreviewsUpdated(previews)),
       onError: (_) {},
     );
+  }
 
+  Future<void> _listenToConnectivity() async {
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = _networkInfo.onConnectivityChanged.listen((
       connected,
@@ -100,15 +114,31 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     });
   }
 
+  void _armFirstSnapshotTimer() {
+    _firstSnapshotTimer?.cancel();
+    if (state is! UsersLoading) {
+      return;
+    }
+    _firstSnapshotTimer = Timer(AppTimeouts.firstSnapshot, () {
+      add(const UsersFirstSnapshotTimedOut());
+    });
+  }
+
+  void _cancelFirstSnapshotTimer() {
+    _firstSnapshotTimer?.cancel();
+    _firstSnapshotTimer = null;
+  }
+
   Future<void> _onRefreshed(
     UsersRefreshed event,
     Emitter<UsersState> emit,
   ) async {
     final current = state;
     if (current is UsersLoaded) {
-      emit(current.copyWith(isRefreshing: true));
+      emit(current.copyWith(isRefreshing: true, clearRefreshError: true));
     } else {
       emit(const UsersLoading());
+      _armFirstSnapshotTimer();
     }
 
     final online = await _networkInfo.isConnected;
@@ -122,21 +152,29 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     }
 
     final usersResult = await _refreshUsers(const NoParams());
-    final previewsResult = await _refreshChatPreviews(_currentUserId);
+    final usersError = usersResult.fold((failure) => failure.message, (_) => null);
+    if (usersError != null) {
+      if (current is UsersLoaded) {
+        emit(
+          current.copyWith(
+            isRefreshing: false,
+            isOffline: false,
+            refreshError: usersError,
+          ),
+        );
+      } else {
+        emit(UsersFailure(usersError));
+      }
+      return;
+    }
 
-    var users = current is UsersLoaded ? current.users : <UserEntity>[];
-    usersResult.fold((_) {}, (fresh) {
-      users = fresh;
-    });
+    final users = usersResult.getOrElse(() => <UserEntity>[]);
+    final previewsResult = await _refreshChatPreviews(_currentUserId);
     previewsResult.fold((_) {}, (fresh) {
       _previews = _toMap(fresh);
     });
 
-    if (users.isEmpty && current is! UsersLoaded) {
-      emit(const UsersDisconnected());
-      return;
-    }
-
+    _cancelFirstSnapshotTimer();
     emit(
       UsersLoaded(
         users: _prepare(users),
@@ -144,6 +182,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
         previews: _previews,
         searchQuery: current is UsersLoaded ? current.searchQuery : '',
         isRefreshing: false,
+        isOffline: false,
       ),
     );
   }
@@ -156,6 +195,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   }
 
   void _onUpdated(UsersUpdated event, Emitter<UsersState> emit) {
+    _cancelFirstSnapshotTimer();
     final current = state;
     emit(
       UsersLoaded(
@@ -185,13 +225,36 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     );
   }
 
-  void _onWatchFailed(UsersWatchFailed event, Emitter<UsersState> emit) {
+  Future<void> _onWatchFailed(
+    UsersWatchFailed event,
+    Emitter<UsersState> emit,
+  ) async {
     final current = state;
+    final online = await _networkInfo.isConnected;
     if (current is UsersLoaded) {
-      emit(current.copyWith(isOffline: true, isRefreshing: false));
-    } else {
-      emit(const UsersDisconnected());
+      emit(current.copyWith(isOffline: !online, isRefreshing: false));
+      return;
     }
+    if (!online) {
+      emit(const UsersDisconnected());
+      return;
+    }
+    emit(UsersFailure(event.message));
+  }
+
+  Future<void> _onFirstSnapshotTimedOut(
+    UsersFirstSnapshotTimedOut event,
+    Emitter<UsersState> emit,
+  ) async {
+    if (state is! UsersLoading) {
+      return;
+    }
+    final online = await _networkInfo.isConnected;
+    if (!online) {
+      emit(const UsersDisconnected());
+      return;
+    }
+    emit(const UsersFailure('Request timed out. Please try again.'));
   }
 
   void _onConnectionChanged(
@@ -241,6 +304,7 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
 
   @override
   Future<void> close() {
+    _cancelFirstSnapshotTimer();
     _usersSubscription?.cancel();
     _previewsSubscription?.cancel();
     _connectivitySubscription?.cancel();

@@ -1,3 +1,4 @@
+import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
 import 'package:chat_app/features/auth/domain/usecases/update_auth_display_name.dart';
 import 'package:chat_app/features/profile/presentation/bloc/profile_event.dart';
@@ -9,14 +10,17 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc({
     required UpdateAuthDisplayName updateAuthDisplayName,
     required UpdateUserDisplayName updateUserDisplayName,
+    required NetworkInfo networkInfo,
   }) : _updateAuthDisplayName = updateAuthDisplayName,
        _updateUserDisplayName = updateUserDisplayName,
+       _networkInfo = networkInfo,
        super(const ProfileIdle()) {
     on<ProfileSaveRequested>(_onSaveRequested);
   }
 
   final UpdateAuthDisplayName _updateAuthDisplayName;
   final UpdateUserDisplayName _updateUserDisplayName;
+  final NetworkInfo _networkInfo;
 
   Future<void> _onSaveRequested(
     ProfileSaveRequested event,
@@ -27,6 +31,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       return;
     }
     emit(const ProfileSaving());
+    if (!await _networkInfo.isConnected) {
+      emit(const ProfileFailure('No internet connection.'));
+      return;
+    }
 
     final authResult = await _updateAuthDisplayName(name);
     UserEntity? updatedUser;

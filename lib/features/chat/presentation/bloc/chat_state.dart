@@ -30,18 +30,21 @@ class ChatLoaded extends ChatState {
     required this.messages,
     required this.currentUserId,
     this.isSending = false,
+    this.isOffline = false,
     this.sendError,
   });
 
   final List<MessageEntity> messages;
   final String currentUserId;
   final bool isSending;
+  final bool isOffline;
   final String? sendError;
 
   ChatLoaded copyWith({
     List<MessageEntity>? messages,
     String? currentUserId,
     bool? isSending,
+    bool? isOffline,
     String? sendError,
     bool clearSendError = false,
   }) {
@@ -49,10 +52,17 @@ class ChatLoaded extends ChatState {
       messages: messages ?? this.messages,
       currentUserId: currentUserId ?? this.currentUserId,
       isSending: isSending ?? this.isSending,
+      isOffline: isOffline ?? this.isOffline,
       sendError: clearSendError ? null : (sendError ?? this.sendError),
     );
   }
 
   @override
-  List<Object?> get props => [messages, currentUserId, isSending, sendError];
+  List<Object?> get props => [
+    messages,
+    currentUserId,
+    isSending,
+    isOffline,
+    sendError,
+  ];
 }

@@ -23,6 +23,12 @@ class NetworkFailure extends Failure {
   const NetworkFailure([super.message = 'No internet connection.']);
 }
 
+class TimeoutFailure extends Failure {
+  const TimeoutFailure([
+    super.message = 'Request timed out. Please try again.',
+  ]);
+}
+
 class AuthFailure extends Failure {
   const AuthFailure([super.message = 'Authentication failed.']);
 }

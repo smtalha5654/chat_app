@@ -1,5 +1,6 @@
 import 'package:chat_app/core/constants/firestore_collections.dart';
 import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/core/network/with_timeout.dart';
 import 'package:chat_app/features/chat/data/models/chat_preview_model.dart';
 import 'package:chat_app/features/chat/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,8 +35,6 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   ChatRemoteDataSourceImpl({required this.firestore});
 
   final FirebaseFirestore firestore;
-
-  static const _timeout = Duration(seconds: 15);
 
   CollectionReference<Map<String, dynamic>> get _chats {
     return firestore.collection(FirestoreCollections.chats);
@@ -81,17 +80,12 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<List<ChatPreviewModel>> fetchChatPreviews(String userId) async {
     try {
-      final snapshot = await _chatsForUser(userId)
-          .get(const GetOptions(source: Source.server))
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      final snapshot = await withTimeout(
+        _chatsForUser(userId).get(const GetOptions(source: Source.server)),
+      );
       return _previewsFromSnapshot(snapshot, userId);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -127,12 +121,9 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         'lastMessageId': messageRef.id,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      await batch.commit().timeout(
-        _timeout,
-        onTimeout: () {
-          throw const NetworkException('Request timed out. Please try again.');
-        },
-      );
+      await withTimeout(batch.commit());
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -149,18 +140,15 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     required String text,
   }) async {
     try {
-      await _messages(chatId)
-          .doc(messageId)
-          .update({'text': text, 'isEdited': true})
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      await withTimeout(
+        _messages(chatId).doc(messageId).update({
+          'text': text,
+          'isEdited': true,
+        }),
+      );
       await _syncChatPreview(chatId);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -176,18 +164,10 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     required String messageId,
   }) async {
     try {
-      await _messages(chatId)
-          .doc(messageId)
-          .delete()
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw const NetworkException(
-                'Request timed out. Please try again.',
-              );
-            },
-          );
+      await withTimeout(_messages(chatId).doc(messageId).delete());
       await _syncChatPreview(chatId);
+    } on RequestTimeoutException {
+      rethrow;
     } on NetworkException {
       rethrow;
     } on FirebaseException catch (e) {
@@ -199,34 +179,31 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
 
   Future<void> _syncChatPreview(String chatId) async {
     final chatRef = _chats.doc(chatId);
-    final latest = await _messages(chatId)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get()
-        .timeout(
-          _timeout,
-          onTimeout: () {
-            throw const NetworkException('Request timed out. Please try again.');
-          },
-        );
+    final latest = await withTimeout(
+      _messages(chatId).orderBy('timestamp', descending: true).limit(1).get(),
+    );
     if (latest.docs.isEmpty) {
-      await chatRef.set({
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastMessageSenderId': '',
-        'lastMessageId': '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await withTimeout(
+        chatRef.set({
+          'lastMessage': '',
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'lastMessageSenderId': '',
+          'lastMessageId': '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)),
+      );
       return;
     }
     final message = MessageModel.fromFirestore(latest.docs.first);
-    await chatRef.set({
-      'lastMessage': message.text,
-      'lastMessageTime': Timestamp.fromDate(message.timestamp),
-      'lastMessageSenderId': message.senderId,
-      'lastMessageId': message.id,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await withTimeout(
+      chatRef.set({
+        'lastMessage': message.text,
+        'lastMessageTime': Timestamp.fromDate(message.timestamp),
+        'lastMessageSenderId': message.senderId,
+        'lastMessageId': message.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)),
+    );
   }
 
   Never _fromFirebase(FirebaseException e, String fallback) {
