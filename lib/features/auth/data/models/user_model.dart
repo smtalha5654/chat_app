@@ -12,13 +12,17 @@ class UserModel {
   final String email;
   final String displayName;
 
-  factory UserModel.fromFirebaseUser(User user) {
+  factory UserModel.fromFirebaseUser(
+    User user, {
+    String? fallbackDisplayName,
+  }) {
     final email = user.email ?? '';
     final name = user.displayName?.trim() ?? '';
+    final fallback = fallbackDisplayName?.trim() ?? '';
     return UserModel(
       id: user.uid,
       email: email,
-      displayName: name.isNotEmpty ? name : email.split('@').first,
+      displayName: name.isNotEmpty ? name : fallback,
     );
   }
 

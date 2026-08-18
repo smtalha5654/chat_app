@@ -37,15 +37,21 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
     required String displayName,
   }) async {
     try {
-      await withTimeout(
-        _users.doc(uid).set({
-          'uid': uid,
-          'email': email,
-          'displayName': displayName,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)),
-      );
+      final doc = _users.doc(uid);
+      final snapshot = await withTimeout(doc.get());
+      final data = <String, dynamic>{
+        'uid': uid,
+        'email': email,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      final trimmedName = displayName.trim();
+      if (trimmedName.isNotEmpty) {
+        data['displayName'] = trimmedName;
+      }
+      if (!snapshot.exists) {
+        data['createdAt'] = FieldValue.serverTimestamp();
+      }
+      await withTimeout(doc.set(data, SetOptions(merge: true)));
     } on RequestTimeoutException {
       rethrow;
     } on NetworkException {

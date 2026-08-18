@@ -62,13 +62,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     final user = event.user;
     if (user != null) {
-      final result = await _ensureUserProfile(user);
-      result.fold((failure) {
-        if (kDebugMode) {
-          debugPrint('Failed to save user profile: ${failure.message}');
-        }
-      }, (_) {});
-      emit(Authenticated(user));
+      // Signup/login emit AuthLoading first. authStateChanges can fire as soon as
+      // the Firebase user is created, before updateDisplayName has run, so skip
+      // that snapshot — it would persist the email prefix instead of the name.
+      if (state is AuthLoading) {
+        return;
+      }
+      final resolved = _resolveUser(user);
+      await _persistProfile(resolved);
+      emit(Authenticated(resolved));
       return;
     }
     if (state is AuthLoading) {
@@ -91,9 +93,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final result = await _signIn(
       SignInParams(email: event.email, password: event.password),
     );
-    result.fold(
-      (failure) => emit(Unauthenticated(message: failure.message)),
-      (user) => emit(Authenticated(user)),
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(Unauthenticated(message: failure.message));
+      },
+      (user) async {
+        await _persistProfile(user);
+        emit(Authenticated(user));
+      },
     );
   }
 
@@ -113,9 +120,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
       ),
     );
-    result.fold(
-      (failure) => emit(Unauthenticated(message: failure.message)),
-      (user) => emit(Authenticated(user)),
+    await result.fold<Future<void>>(
+      (failure) async {
+        emit(Unauthenticated(message: failure.message));
+      },
+      (user) async {
+        await _persistProfile(user);
+        emit(Authenticated(user));
+      },
     );
   }
 
@@ -147,6 +159,34 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(const Unauthenticated());
       },
     );
+  }
+
+  Future<void> _persistProfile(UserEntity user) async {
+    if (user.displayName.trim().isEmpty) {
+      return;
+    }
+    final result = await _ensureUserProfile(user);
+    result.fold((failure) {
+      if (kDebugMode) {
+        debugPrint('Failed to save user profile: ${failure.message}');
+      }
+    }, (_) {});
+  }
+
+  /// Prefer a name we already have over a later auth snapshot with no name.
+  UserEntity _resolveUser(UserEntity incoming) {
+    final current = state;
+    if (current is Authenticated &&
+        current.user.id == incoming.id &&
+        incoming.displayName.trim().isEmpty &&
+        current.user.displayName.trim().isNotEmpty) {
+      return UserEntity(
+        id: incoming.id,
+        email: incoming.email.isNotEmpty ? incoming.email : current.user.email,
+        displayName: current.user.displayName,
+      );
+    }
+    return incoming;
   }
 
   @override
