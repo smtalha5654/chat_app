@@ -1,4 +1,5 @@
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
+import 'package:chat_app/features/chat/domain/entities/chat_preview_entity.dart';
 import 'package:equatable/equatable.dart';
 
 sealed class UsersEvent extends Equatable {
@@ -37,6 +38,15 @@ class UsersUpdated extends UsersEvent {
 
   @override
   List<Object?> get props => [users];
+}
+
+class UsersPreviewsUpdated extends UsersEvent {
+  const UsersPreviewsUpdated(this.previews);
+
+  final List<ChatPreviewEntity> previews;
+
+  @override
+  List<Object?> get props => [previews];
 }
 
 class UsersWatchFailed extends UsersEvent {

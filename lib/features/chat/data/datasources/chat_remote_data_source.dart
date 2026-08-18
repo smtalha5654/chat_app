@@ -1,10 +1,15 @@
 import 'package:chat_app/core/constants/firestore_collections.dart';
 import 'package:chat_app/core/error/exceptions.dart';
+import 'package:chat_app/features/chat/data/models/chat_preview_model.dart';
 import 'package:chat_app/features/chat/data/models/message_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract class ChatRemoteDataSource {
   Stream<List<MessageModel>> watchMessages(String chatId);
+
+  Stream<List<ChatPreviewModel>> watchChatPreviews(String userId);
+
+  Future<List<ChatPreviewModel>> fetchChatPreviews(String userId);
 
   Future<void> sendMessage({
     required String chatId,
@@ -40,6 +45,22 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     return _chats.doc(chatId).collection(FirestoreCollections.messages);
   }
 
+  Query<Map<String, dynamic>> _chatsForUser(String userId) {
+    return _chats.where('participants', arrayContains: userId);
+  }
+
+  List<ChatPreviewModel> _previewsFromSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+    String userId,
+  ) {
+    return snapshot.docs
+        .map(
+          (doc) => ChatPreviewModel.fromFirestore(doc, currentUserId: userId),
+        )
+        .where((preview) => preview.peerId.isNotEmpty)
+        .toList();
+  }
+
   @override
   Stream<List<MessageModel>> watchMessages(String chatId) {
     return _messages(chatId)
@@ -48,6 +69,36 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         .map(
           (snapshot) => snapshot.docs.map(MessageModel.fromFirestore).toList(),
         );
+  }
+
+  @override
+  Stream<List<ChatPreviewModel>> watchChatPreviews(String userId) {
+    return _chatsForUser(userId).snapshots().map(
+      (snapshot) => _previewsFromSnapshot(snapshot, userId),
+    );
+  }
+
+  @override
+  Future<List<ChatPreviewModel>> fetchChatPreviews(String userId) async {
+    try {
+      final snapshot = await _chatsForUser(userId)
+          .get(const GetOptions(source: Source.server))
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+      return _previewsFromSnapshot(snapshot, userId);
+    } on NetworkException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw _fromFirebase(e, 'Could not load chats');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
+import 'package:chat_app/features/chat/domain/entities/chat_preview_entity.dart';
 import 'package:equatable/equatable.dart';
 
 sealed class UsersState extends Equatable {
@@ -23,15 +24,21 @@ class UsersDisconnected extends UsersState {
 class UsersLoaded extends UsersState {
   const UsersLoaded({
     required this.users,
+    required this.currentUserId,
+    this.previews = const {},
     this.searchQuery = '',
     this.isOffline = false,
     this.isRefreshing = false,
   });
 
   final List<UserEntity> users;
+  final String currentUserId;
+  final Map<String, ChatPreviewEntity> previews;
   final String searchQuery;
   final bool isOffline;
   final bool isRefreshing;
+
+  ChatPreviewEntity? previewFor(String userId) => previews[userId];
 
   List<UserEntity> get filtered {
     final query = searchQuery.trim().toLowerCase();
@@ -46,12 +53,16 @@ class UsersLoaded extends UsersState {
 
   UsersLoaded copyWith({
     List<UserEntity>? users,
+    String? currentUserId,
+    Map<String, ChatPreviewEntity>? previews,
     String? searchQuery,
     bool? isOffline,
     bool? isRefreshing,
   }) {
     return UsersLoaded(
       users: users ?? this.users,
+      currentUserId: currentUserId ?? this.currentUserId,
+      previews: previews ?? this.previews,
       searchQuery: searchQuery ?? this.searchQuery,
       isOffline: isOffline ?? this.isOffline,
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -59,5 +70,12 @@ class UsersLoaded extends UsersState {
   }
 
   @override
-  List<Object?> get props => [users, searchQuery, isOffline, isRefreshing];
+  List<Object?> get props => [
+    users,
+    currentUserId,
+    previews,
+    searchQuery,
+    isOffline,
+    isRefreshing,
+  ];
 }

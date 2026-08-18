@@ -1,20 +1,66 @@
 import 'package:chat_app/core/error/exceptions.dart';
 import 'package:chat_app/core/error/failures.dart';
+import 'package:chat_app/features/chat/data/datasources/chat_local_data_source.dart';
 import 'package:chat_app/features/chat/data/datasources/chat_remote_data_source.dart';
+import 'package:chat_app/features/chat/data/models/chat_preview_model.dart';
+import 'package:chat_app/features/chat/domain/entities/chat_preview_entity.dart';
 import 'package:chat_app/features/chat/domain/entities/message_entity.dart';
 import 'package:chat_app/features/chat/domain/repositories/chat_repository.dart';
 import 'package:dartz/dartz.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
-  ChatRepositoryImpl({required this.remoteDataSource});
+  ChatRepositoryImpl({
+    required this.remoteDataSource,
+    required this.localDataSource,
+  });
 
   final ChatRemoteDataSource remoteDataSource;
+  final ChatLocalDataSource localDataSource;
 
   @override
   Stream<List<MessageEntity>> watchMessages(String chatId) {
     return remoteDataSource.watchMessages(chatId).map((models) {
       return models.map((model) => model.toEntity()).toList();
     });
+  }
+
+  @override
+  Stream<List<ChatPreviewEntity>> watchChatPreviews(String userId) {
+    return remoteDataSource.watchChatPreviews(userId).asyncMap((models) async {
+      await _cacheQuietly(userId, models);
+      return models.map((model) => model.toEntity()).toList();
+    });
+  }
+
+  @override
+  Future<Either<Failure, List<ChatPreviewEntity>>> refreshChatPreviews(
+    String userId,
+  ) async {
+    try {
+      final models = await remoteDataSource.fetchChatPreviews(userId);
+      await _cacheQuietly(userId, models);
+      return Right(models.map((model) => model.toEntity()).toList());
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (_) {
+      return const Left(ServerFailure('Could not load chats.'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ChatPreviewEntity>>> getCachedChatPreviews(
+    String userId,
+  ) async {
+    try {
+      final models = localDataSource.getCachedPreviews(userId);
+      return Right(models.map((model) => model.toEntity()).toList());
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    } catch (_) {
+      return const Left(CacheFailure());
+    }
   }
 
   @override
@@ -78,6 +124,17 @@ class ChatRepositoryImpl implements ChatRepository {
       return Left(ServerFailure(e.message));
     } catch (_) {
       return Left(ServerFailure(fallback));
+    }
+  }
+
+  Future<void> _cacheQuietly(
+    String userId,
+    List<ChatPreviewModel> models,
+  ) async {
+    try {
+      await localDataSource.cachePreviews(userId, models);
+    } catch (_) {
+      return;
     }
   }
 }

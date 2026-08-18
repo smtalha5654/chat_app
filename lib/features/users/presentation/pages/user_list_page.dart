@@ -144,6 +144,8 @@ class _UsersBody extends StatelessWidget {
           final user = users[index];
           return UserTile(
             user: user,
+            currentUserId: state.currentUserId,
+            preview: state.previewFor(user.id),
             onTap: () {
               Navigator.pushNamed(
                 context,
