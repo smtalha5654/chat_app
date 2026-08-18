@@ -1,0 +1,26 @@
+import 'package:flutter/material.dart';
+
+class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const ChatAppBar({
+    super.key,
+    required this.title,
+    this.actions,
+    this.automaticallyImplyLeading = true,
+  });
+
+  final String title;
+  final List<Widget>? actions;
+  final bool automaticallyImplyLeading;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      title: Text(title),
+      actions: actions,
+      automaticallyImplyLeading: automaticallyImplyLeading,
+    );
+  }
+}
