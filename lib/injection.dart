@@ -2,6 +2,7 @@ import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:chat_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:chat_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:chat_app/features/auth/domain/usecases/clear_local_cache.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_in.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_out.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_up.dart';
@@ -35,90 +36,117 @@ import 'package:chat_app/features/users/presentation/bloc/users_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
+final sl = GetIt.instance;
 
 Future<void> initDependencies() async {
   await Hive.initFlutter();
-  await Hive.openBox(UserLocalDataSourceImpl.boxName);
-  await Hive.openBox(ChatLocalDataSourceImpl.boxName);
+  final usersBox = await Hive.openBox(UserLocalDataSourceImpl.boxName);
+  final previewsBox = await Hive.openBox(ChatLocalDataSourceImpl.boxName);
+
+  sl
+    ..registerLazySingleton(() => FirebaseAuth.instance)
+    ..registerLazySingleton(() => FirebaseFirestore.instance)
+    ..registerLazySingleton(Connectivity.new)
+    ..registerLazySingleton<NetworkInfo>(
+      () => NetworkInfoImpl(connectivity: sl()),
+    )
+    ..registerLazySingleton<AuthRemoteDataSource>(
+      () => AuthRemoteDataSourceImpl(firebaseAuth: sl()),
+    )
+    ..registerLazySingleton<AuthRepository>(
+      () => AuthRepositoryImpl(remoteDataSource: sl()),
+    )
+    ..registerLazySingleton<UserRemoteDataSource>(
+      () => UserRemoteDataSourceImpl(firestore: sl()),
+    )
+    ..registerLazySingleton<UserLocalDataSource>(
+      () => UserLocalDataSourceImpl(box: usersBox),
+    )
+    ..registerLazySingleton<UserRepository>(
+      () => UserRepositoryImpl(
+        remoteDataSource: sl(),
+        localDataSource: sl(),
+      ),
+    )
+    ..registerLazySingleton<ChatRemoteDataSource>(
+      () => ChatRemoteDataSourceImpl(firestore: sl()),
+    )
+    ..registerLazySingleton<ChatLocalDataSource>(
+      () => ChatLocalDataSourceImpl(box: previewsBox),
+    )
+    ..registerLazySingleton<ChatRepository>(
+      () => ChatRepositoryImpl(
+        remoteDataSource: sl(),
+        localDataSource: sl(),
+      ),
+    )
+    ..registerLazySingleton(() => SignIn(sl()))
+    ..registerLazySingleton(() => SignUp(sl()))
+    ..registerLazySingleton(() => SignOut(sl()))
+    ..registerLazySingleton(() => WatchAuth(sl()))
+    ..registerLazySingleton(() => UpdateAuthDisplayName(sl()))
+    ..registerLazySingleton(() => EnsureUserProfile(sl()))
+    ..registerLazySingleton(() => WatchUsers(sl()))
+    ..registerLazySingleton(() => RefreshUsers(sl()))
+    ..registerLazySingleton(() => GetCachedUsers(sl()))
+    ..registerLazySingleton(() => UpdateUserDisplayName(sl()))
+    ..registerLazySingleton(() => WatchMessages(sl()))
+    ..registerLazySingleton(() => SendMessage(sl()))
+    ..registerLazySingleton(() => EditMessage(sl()))
+    ..registerLazySingleton(() => DeleteMessage(sl()))
+    ..registerLazySingleton(() => WatchChatPreviews(sl()))
+    ..registerLazySingleton(() => RefreshChatPreviews(sl()))
+    ..registerLazySingleton(() => GetCachedChatPreviews(sl()))
+    ..registerLazySingleton(
+      () => ClearLocalCache(userRepository: sl(), chatRepository: sl()),
+    )
+    ..registerFactory(
+      () => AuthBloc(
+        signIn: sl(),
+        signUp: sl(),
+        signOut: sl(),
+        watchAuth: sl(),
+        ensureUserProfile: sl(),
+        clearLocalCache: sl(),
+        networkInfo: sl(),
+      )..add(const AuthStarted()),
+    )
+    ..registerFactory(
+      () => UsersBloc(
+        watchUsers: sl(),
+        refreshUsers: sl(),
+        getCachedUsers: sl(),
+        watchChatPreviews: sl(),
+        refreshChatPreviews: sl(),
+        getCachedChatPreviews: sl(),
+        networkInfo: sl(),
+      ),
+    )
+    ..registerFactory(
+      () => ChatBloc(
+        watchMessages: sl(),
+        sendMessage: sl(),
+        editMessage: sl(),
+        deleteMessage: sl(),
+        networkInfo: sl(),
+      ),
+    )
+    ..registerFactory(
+      () => ProfileBloc(
+        updateAuthDisplayName: sl(),
+        updateUserDisplayName: sl(),
+        networkInfo: sl(),
+      ),
+    );
 }
 
-UserRepository createUserRepository() {
-  return UserRepositoryImpl(
-    remoteDataSource: UserRemoteDataSourceImpl(
-      firestore: FirebaseFirestore.instance,
-    ),
-    localDataSource: UserLocalDataSourceImpl(
-      box: Hive.box(UserLocalDataSourceImpl.boxName),
-    ),
-  );
-}
+AuthBloc createAuthBloc() => sl<AuthBloc>();
 
-AuthRepository createAuthRepository() {
-  return AuthRepositoryImpl(
-    remoteDataSource: AuthRemoteDataSourceImpl(
-      firebaseAuth: FirebaseAuth.instance,
-    ),
-  );
-}
+UsersBloc createUsersBloc() => sl<UsersBloc>();
 
-NetworkInfo createNetworkInfo() {
-  return NetworkInfoImpl(connectivity: Connectivity());
-}
+ChatBloc createChatBloc() => sl<ChatBloc>();
 
-AuthBloc createAuthBloc() {
-  final authRepository = createAuthRepository();
-  final userRepository = createUserRepository();
-  return AuthBloc(
-    signIn: SignIn(authRepository),
-    signUp: SignUp(authRepository),
-    signOut: SignOut(authRepository),
-    watchAuth: WatchAuth(authRepository),
-    ensureUserProfile: EnsureUserProfile(userRepository),
-    networkInfo: createNetworkInfo(),
-  )..add(const AuthStarted());
-}
-
-ChatRepository createChatRepository() {
-  return ChatRepositoryImpl(
-    remoteDataSource: ChatRemoteDataSourceImpl(
-      firestore: FirebaseFirestore.instance,
-    ),
-    localDataSource: ChatLocalDataSourceImpl(
-      box: Hive.box(ChatLocalDataSourceImpl.boxName),
-    ),
-  );
-}
-
-UsersBloc createUsersBloc() {
-  final userRepository = createUserRepository();
-  final chatRepository = createChatRepository();
-  return UsersBloc(
-    watchUsers: WatchUsers(userRepository),
-    refreshUsers: RefreshUsers(userRepository),
-    getCachedUsers: GetCachedUsers(userRepository),
-    watchChatPreviews: WatchChatPreviews(chatRepository),
-    refreshChatPreviews: RefreshChatPreviews(chatRepository),
-    getCachedChatPreviews: GetCachedChatPreviews(chatRepository),
-    networkInfo: createNetworkInfo(),
-  );
-}
-
-ChatBloc createChatBloc() {
-  final repository = createChatRepository();
-  return ChatBloc(
-    watchMessages: WatchMessages(repository),
-    sendMessage: SendMessage(repository),
-    editMessage: EditMessage(repository),
-    deleteMessage: DeleteMessage(repository),
-    networkInfo: createNetworkInfo(),
-  );
-}
-
-ProfileBloc createProfileBloc() {
-  return ProfileBloc(
-    updateAuthDisplayName: UpdateAuthDisplayName(createAuthRepository()),
-    updateUserDisplayName: UpdateUserDisplayName(createUserRepository()),
-    networkInfo: createNetworkInfo(),
-  );
-}
+ProfileBloc createProfileBloc() => sl<ProfileBloc>();

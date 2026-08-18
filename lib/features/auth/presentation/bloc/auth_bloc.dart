@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:chat_app/core/network/network_info.dart';
 import 'package:chat_app/core/usecase/usecase.dart';
 import 'package:chat_app/features/auth/domain/entities/user_entity.dart';
+import 'package:chat_app/features/auth/domain/usecases/clear_local_cache.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_in.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_out.dart';
 import 'package:chat_app/features/auth/domain/usecases/sign_up.dart';
@@ -20,12 +21,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignOut signOut,
     required WatchAuth watchAuth,
     required EnsureUserProfile ensureUserProfile,
+    required ClearLocalCache clearLocalCache,
     required NetworkInfo networkInfo,
   }) : _signIn = signIn,
        _signUp = signUp,
        _signOut = signOut,
        _watchAuth = watchAuth,
        _ensureUserProfile = ensureUserProfile,
+       _clearLocalCache = clearLocalCache,
        _networkInfo = networkInfo,
        super(const AuthInitial()) {
     on<AuthStarted>(_onStarted);
@@ -41,6 +44,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOut _signOut;
   final WatchAuth _watchAuth;
   final EnsureUserProfile _ensureUserProfile;
+  final ClearLocalCache _clearLocalCache;
   final NetworkInfo _networkInfo;
 
   StreamSubscription<UserEntity?>? _authSubscription;
@@ -130,15 +134,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     final previous = state;
     final result = await _signOut(const NoParams());
-    result.fold(
-      (failure) {
+    await result.fold(
+      (failure) async {
         if (previous is Authenticated) {
           emit(previous);
         } else {
           emit(Unauthenticated(message: failure.message));
         }
       },
-      (_) => emit(const Unauthenticated()),
+      (_) async {
+        await _clearLocalCache(const NoParams());
+        emit(const Unauthenticated());
+      },
     );
   }
 

@@ -15,4 +15,6 @@ abstract class UserRepository {
   Future<Either<Failure, List<UserEntity>>> refreshUsers();
 
   Future<Either<Failure, List<UserEntity>>> getCachedUsers();
+
+  Future<Either<Failure, void>> clearCache();
 }

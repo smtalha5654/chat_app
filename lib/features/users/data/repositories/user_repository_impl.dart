@@ -84,6 +84,16 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> clearCache() async {
+    try {
+      await localDataSource.clearCache();
+      return const Right(null);
+    } catch (error) {
+      return Left(failureFromException(error) ?? const CacheFailure());
+    }
+  }
+
   Future<void> _cacheQuietly(List<UserModel> models) async {
     try {
       await localDataSource.cacheUsers(models);

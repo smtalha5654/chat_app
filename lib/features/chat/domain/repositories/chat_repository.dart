@@ -33,4 +33,6 @@ abstract class ChatRepository {
     required String chatId,
     required String messageId,
   });
+
+  Future<Either<Failure, void>> clearCache();
 }

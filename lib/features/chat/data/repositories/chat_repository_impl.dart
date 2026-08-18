@@ -108,6 +108,16 @@ class ChatRepositoryImpl implements ChatRepository {
     );
   }
 
+  @override
+  Future<Either<Failure, void>> clearCache() async {
+    try {
+      await localDataSource.clearCache();
+      return const Right(null);
+    } catch (error) {
+      return Left(failureFromException(error) ?? const CacheFailure());
+    }
+  }
+
   Future<Either<Failure, void>> _run(
     Future<void> Function() action,
     String fallback,
