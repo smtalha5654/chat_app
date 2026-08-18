@@ -24,8 +24,17 @@ service cloud.firestore {
         return signedIn() && request.auth.uid in request.resource.data.participants;
       }
 
+      // chatId is "{uidA}_{uidB}" with the two ids sorted.
+      function belongsToChatId() {
+        return signedIn() && (
+          chatId.matches(request.auth.uid + '_.*')
+          || chatId.matches('.*_' + request.auth.uid)
+        );
+      }
+
       allow read: if isParticipant();
       allow create: if isIncomingParticipant()
+        && belongsToChatId()
         && request.resource.data.participants.size() == 2;
       allow update: if isParticipant() && isIncomingParticipant();
       allow delete: if false;
@@ -35,17 +44,22 @@ service cloud.firestore {
           return /databases/$(database)/documents/chats/$(chatId);
         }
 
-        function isChatParticipant() {
-          return signedIn() && (
-            (exists(chatPath()) && request.auth.uid in get(chatPath()).data.participants)
-            || (existsAfter(chatPath()) && request.auth.uid in getAfter(chatPath()).data.participants)
-          );
+        function isExistingChatParticipant() {
+          return exists(chatPath())
+            && request.auth.uid in get(chatPath()).data.participants;
         }
 
-        allow read: if isChatParticipant();
-        allow create: if isChatParticipant()
-          && request.resource.data.senderId == request.auth.uid;
-        allow update, delete: if isChatParticipant()
+        function isChatParticipantAfterWrite() {
+          return existsAfter(chatPath())
+            && request.auth.uid in getAfter(chatPath()).data.participants;
+        }
+
+        allow read: if belongsToChatId();
+        allow create: if belongsToChatId()
+          && request.resource.data.senderId == request.auth.uid
+          && (isExistingChatParticipant() || isChatParticipantAfterWrite());
+        allow update, delete: if belongsToChatId()
+          && isExistingChatParticipant()
           && resource.data.senderId == request.auth.uid;
       }
     }

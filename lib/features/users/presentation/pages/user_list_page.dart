@@ -53,6 +53,7 @@ class _UserListPageState extends State<UserListPage> {
     return Scaffold(
       appBar: ChatAppBar(
         title: 'Chats',
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             tooltip: 'Profile',
@@ -107,17 +108,11 @@ class _UserListPageState extends State<UserListPage> {
                       context.read<UsersBloc>().add(const UsersRefreshed());
                     },
                   ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: AppTextField(
-                    controller: _searchController,
-                    hint: 'Search users',
-                    prefixIcon: const Icon(Icons.search),
-                    textInputAction: TextInputAction.search,
-                    onChanged: (query) {
-                      context.read<UsersBloc>().add(UsersSearchChanged(query));
-                    },
-                  ),
+                _SearchField(
+                  controller: _searchController,
+                  onChanged: (query) {
+                    context.read<UsersBloc>().add(UsersSearchChanged(query));
+                  },
                 ),
                 Expanded(child: _UsersBody(state: state)),
               ],
@@ -125,6 +120,64 @@ class _UserListPageState extends State<UserListPage> {
           }
           return const LoadingView();
         },
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final radius = BorderRadius.circular(12);
+    final fill = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFECEEEE);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Theme(
+        data: theme.copyWith(
+          inputDecorationTheme: InputDecorationTheme(
+            isDense: true,
+            filled: true,
+            fillColor: fill,
+            hintStyle: TextStyle(color: theme.hintColor, fontSize: 15),
+            prefixIconColor: theme.hintColor,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide(color: theme.colorScheme.primary),
+            ),
+          ),
+        ),
+        child: AppTextField(
+          controller: controller,
+          hint: 'Search',
+          prefixIcon: const Icon(Icons.search, size: 22),
+          textInputAction: TextInputAction.search,
+          onChanged: onChanged,
+        ),
       ),
     );
   }
@@ -158,10 +211,10 @@ class _UsersBody extends StatelessWidget {
           return next is UsersDisconnected || next is UsersFailure;
         });
       },
-      child: ListView.separated(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 16),
         itemCount: users.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final user = users[index];
           return UserTile(

@@ -5,10 +5,12 @@ class UserAvatar extends StatelessWidget {
     super.key,
     required this.name,
     this.radius = 20,
+    this.backgroundColor,
   });
 
   final String name;
   final double radius;
+  final Color? backgroundColor;
 
   String get _initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -25,7 +27,8 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor:
+          backgroundColor ?? Theme.of(context).colorScheme.primary,
       foregroundColor: Theme.of(context).colorScheme.onPrimary,
       child: Text(
         _initials,

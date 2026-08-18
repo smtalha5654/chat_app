@@ -7,10 +7,14 @@ import 'package:chat_app/firebase_options.dart';
 import 'package:chat_app/injection.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initDependencies();
   runApp(const ChatApp());
@@ -52,6 +56,11 @@ class _AuthScope extends StatelessWidget {
           themeMode: ThemeMode.system,
           initialRoute: _initialRoute(state),
           onGenerateRoute: AppRouter.onGenerateRoute,
+          onGenerateInitialRoutes: (initialRoute) {
+            return [
+              AppRouter.onGenerateRoute(RouteSettings(name: initialRoute)),
+            ];
+          },
         );
       },
     );

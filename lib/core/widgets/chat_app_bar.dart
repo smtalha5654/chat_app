@@ -5,10 +5,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.actions,
+    this.automaticallyImplyLeading = true,
   });
 
   final String title;
   final List<Widget>? actions;
+  final bool automaticallyImplyLeading;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -18,6 +20,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Text(title),
       actions: actions,
+      automaticallyImplyLeading: automaticallyImplyLeading,
     );
   }
 }

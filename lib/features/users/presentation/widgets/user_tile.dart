@@ -18,25 +18,102 @@ class UserTile extends StatelessWidget {
   final ChatPreviewEntity? preview;
   final VoidCallback onTap;
 
+  static const _avatarColors = [
+    Color(0xFF2E6F6A),
+    Color(0xFF3D7A6F),
+    Color(0xFF4A6E62),
+    Color(0xFF3A6B80),
+    Color(0xFF5C6B52),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final time = preview?.lastMessageTime;
-    return ListTile(
-      leading: UserAvatar(name: user.displayName),
-      title: Text(user.displayName),
-      subtitle: Text(
-        _subtitle(),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: time == null
-          ? null
-          : Text(
-              formatMessageTime(time),
-              style: Theme.of(context).textTheme.bodySmall,
+    final hasPreview = preview != null && preview!.hasPreview;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Material(
+        color: theme.colorScheme.surface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFE4E8E7),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                UserAvatar(
+                  name: user.displayName,
+                  radius: 22,
+                  backgroundColor: _avatarColor(user.displayName),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              user.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (time != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              formatMessageTime(time),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.hintColor,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _subtitle(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: hasPreview
+                              ? theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.64,
+                                )
+                              : theme.hintColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-      onTap: onTap,
+          ),
+        ),
+      ),
     );
+  }
+
+  Color _avatarColor(String name) {
+    final hash = name.hashCode.abs();
+    return _avatarColors[hash % _avatarColors.length];
   }
 
   String _subtitle() {
