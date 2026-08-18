@@ -66,10 +66,7 @@ Future<void> initDependencies() async {
       () => UserLocalDataSourceImpl(box: usersBox),
     )
     ..registerLazySingleton<UserRepository>(
-      () => UserRepositoryImpl(
-        remoteDataSource: sl(),
-        localDataSource: sl(),
-      ),
+      () => UserRepositoryImpl(remoteDataSource: sl(), localDataSource: sl()),
     )
     ..registerLazySingleton<ChatRemoteDataSource>(
       () => ChatRemoteDataSourceImpl(firestore: sl()),
@@ -78,10 +75,7 @@ Future<void> initDependencies() async {
       () => ChatLocalDataSourceImpl(box: previewsBox),
     )
     ..registerLazySingleton<ChatRepository>(
-      () => ChatRepositoryImpl(
-        remoteDataSource: sl(),
-        localDataSource: sl(),
-      ),
+      () => ChatRepositoryImpl(remoteDataSource: sl(), localDataSource: sl()),
     )
     ..registerLazySingleton(() => SignIn(sl()))
     ..registerLazySingleton(() => SignUp(sl()))

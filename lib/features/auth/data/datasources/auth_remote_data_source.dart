@@ -42,7 +42,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final credential = await withTimeout(
         firebaseAuth.signInWithEmailAndPassword(
-          email: email,
+          email: email.toLowerCase(),
           password: password,
         ),
       );
@@ -73,7 +73,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final credential = await withTimeout(
         firebaseAuth.createUserWithEmailAndPassword(
-          email: email,
+          email: email.toLowerCase(),
           password: password,
         ),
       );
@@ -84,7 +84,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await withTimeout(user.updateDisplayName(displayName));
       await withTimeout(user.reload());
       final refreshed = firebaseAuth.currentUser ?? user;
-      return UserModel.fromFirebaseUser(refreshed);
+      return UserModel.fromFirebaseUser(
+        refreshed,
+        fallbackDisplayName: displayName,
+      );
     } on RequestTimeoutException {
       rethrow;
     } on NetworkException {
@@ -108,7 +111,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       await withTimeout(user.updateDisplayName(displayName));
       await withTimeout(user.reload());
       final refreshed = firebaseAuth.currentUser ?? user;
-      return UserModel.fromFirebaseUser(refreshed);
+      return UserModel.fromFirebaseUser(
+        refreshed,
+        fallbackDisplayName: displayName,
+      );
     } on RequestTimeoutException {
       rethrow;
     } on NetworkException {
@@ -118,7 +124,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapAuthError(e.code));
     } catch (_) {
-      throw const AuthException('Could not update your name. Please try again.');
+      throw const AuthException(
+        'Could not update your name. Please try again.',
+      );
     }
   }
 
