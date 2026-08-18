@@ -35,6 +35,26 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
+  Future<Either<Failure, void>> updateDisplayName({
+    required String uid,
+    required String displayName,
+  }) async {
+    try {
+      await remoteDataSource.updateDisplayName(
+        uid: uid,
+        displayName: displayName,
+      );
+      return const Right(null);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (_) {
+      return const Left(ServerFailure('Could not update your profile.'));
+    }
+  }
+
+  @override
   Stream<List<UserEntity>> watchUsers() {
     return remoteDataSource.watchUsers().asyncMap((models) async {
       await _cacheQuietly(models);

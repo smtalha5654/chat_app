@@ -30,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLogin);
     on<AuthRegisterRequested>(_onRegister);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthProfileUpdated>(_onProfileUpdated);
   }
 
   final SignIn _signIn;
@@ -100,6 +101,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (failure) => emit(Unauthenticated(message: failure.message)),
       (user) => emit(Authenticated(user)),
     );
+  }
+
+  void _onProfileUpdated(
+    AuthProfileUpdated event,
+    Emitter<AuthState> emit,
+  ) {
+    if (state is Authenticated) {
+      emit(Authenticated(event.user));
+    }
   }
 
   Future<void> _onLogout(

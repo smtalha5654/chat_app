@@ -10,6 +10,11 @@ abstract class UserRemoteDataSource {
     required String displayName,
   });
 
+  Future<void> updateDisplayName({
+    required String uid,
+    required String displayName,
+  });
+
   Stream<List<UserModel>> watchUsers();
 
   Future<List<UserModel>> fetchUsers();
@@ -54,6 +59,35 @@ class UserRemoteDataSourceImpl implements UserRemoteDataSource {
       rethrow;
     } on FirebaseException catch (e) {
       throw _fromFirebase(e, 'Could not save your profile');
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> updateDisplayName({
+    required String uid,
+    required String displayName,
+  }) async {
+    try {
+      await _users
+          .doc(uid)
+          .set({
+            'displayName': displayName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+    } on NetworkException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      throw _fromFirebase(e, 'Could not update your profile');
     } catch (e) {
       throw ServerException(e.toString());
     }

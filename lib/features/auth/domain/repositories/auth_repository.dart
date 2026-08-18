@@ -17,4 +17,6 @@ abstract class AuthRepository {
   });
 
   Future<Either<Failure, void>> signOut();
+
+  Future<Either<Failure, UserEntity>> updateDisplayName(String displayName);
 }

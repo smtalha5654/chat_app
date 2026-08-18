@@ -61,11 +61,26 @@ class _FakeAuthRepository implements AuthRepository {
   Future<Either<Failure, void>> signOut() async {
     return const Right(null);
   }
+
+  @override
+  Future<Either<Failure, UserEntity>> updateDisplayName(
+    String displayName,
+  ) async {
+    return const Left(AuthFailure());
+  }
 }
 
 class _FakeUserRepository implements UserRepository {
   @override
   Future<Either<Failure, void>> ensureUser(UserEntity user) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateDisplayName({
+    required String uid,
+    required String displayName,
+  }) async {
     return const Right(null);
   }
 

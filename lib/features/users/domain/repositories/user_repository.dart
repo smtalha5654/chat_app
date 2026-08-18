@@ -5,6 +5,11 @@ import 'package:dartz/dartz.dart';
 abstract class UserRepository {
   Future<Either<Failure, void>> ensureUser(UserEntity user);
 
+  Future<Either<Failure, void>> updateDisplayName({
+    required String uid,
+    required String displayName,
+  });
+
   Stream<List<UserEntity>> watchUsers();
 
   Future<Either<Failure, List<UserEntity>>> refreshUsers();

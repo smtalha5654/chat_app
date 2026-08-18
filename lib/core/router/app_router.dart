@@ -68,7 +68,12 @@ class AppRouter {
           },
         );
       case AppRoutes.profile:
-        return MaterialPageRoute(builder: (_) => const ProfilePage());
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) => createProfileBloc(),
+            child: const ProfilePage(),
+          ),
+        );
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

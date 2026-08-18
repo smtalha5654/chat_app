@@ -14,6 +14,8 @@ abstract class AuthRemoteDataSource {
   });
 
   Future<void> signOut();
+
+  Future<UserModel> updateDisplayName(String displayName);
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -103,6 +105,42 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       throw AuthException(_mapAuthError(e.code));
     } catch (_) {
       throw const AuthException();
+    }
+  }
+
+  @override
+  Future<UserModel> updateDisplayName(String displayName) async {
+    try {
+      final user = firebaseAuth.currentUser;
+      if (user == null) {
+        throw const AuthException('You are not signed in.');
+      }
+      await user
+          .updateDisplayName(displayName)
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw const NetworkException(
+                'Request timed out. Please try again.',
+              );
+            },
+          );
+      await user.reload().timeout(
+        _timeout,
+        onTimeout: () {
+          throw const NetworkException('Request timed out. Please try again.');
+        },
+      );
+      final refreshed = firebaseAuth.currentUser ?? user;
+      return UserModel.fromFirebaseUser(refreshed);
+    } on NetworkException {
+      rethrow;
+    } on AuthException {
+      rethrow;
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_mapAuthError(e.code));
+    } catch (_) {
+      throw const AuthException('Could not update your name. Please try again.');
     }
   }
 
